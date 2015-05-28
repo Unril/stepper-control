@@ -6,7 +6,7 @@ using namespace StepperControl;
 using namespace testing;
 
 namespace {
-static const size_t AxesSize = 3;
+const size_t AxesSize = 3;
 
 struct GCodeParserCallbacksMock : GCodeParserCallbacks<AxesSize> {
     MOCK_METHOD1(feedrateOverride, void(float));

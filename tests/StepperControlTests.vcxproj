@@ -85,6 +85,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="AxesTests.cpp" />
+    <ClCompile Include="GCodeInterpreterTests.cpp" />
     <ClCompile Include="GCodeParserTests.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
@@ -97,6 +98,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\sc\Axes.h" />
+    <ClInclude Include="..\include\sc\GCodeInterpreter.h" />
     <ClInclude Include="..\include\sc\GCodeParser.h" />
     <ClInclude Include="..\include\sc\StepperControl.h" />
     <ClInclude Include="..\include\sc\TrajectoryGenerator.h" />

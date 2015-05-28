@@ -10,15 +10,17 @@ enum DistanceMode { Absolute, Relative };
 template <size_t AxesSize>
 class GCodeParserCallbacks {
   public:
+    using AxesFloat = Axes<float, AxesSize>;
+
     virtual ~GCodeParserCallbacks() {}
 
     virtual void feedrateOverride(float feed) {}
 
-    virtual void linearMove(Axes<float, AxesSize> const &pos, float feed) {}
+    virtual void linearMove(AxesFloat const &pos, float feed) {}
 
-    virtual void g0RapidMove(Axes<float, AxesSize> const &pos) {}
+    virtual void g0RapidMove(AxesFloat const &pos) {}
 
-    virtual void g1LinearMove(Axes<float, AxesSize> const &pos, float feed) {}
+    virtual void g1LinearMove(AxesFloat const &pos, float feed) {}
 
     virtual void g4Wait(float sec) {}
 
@@ -26,14 +28,16 @@ class GCodeParserCallbacks {
 
     virtual void g90g91DistanceMode(DistanceMode) {}
 
-    virtual void m100MaxVelocityOverride(Axes<float, AxesSize> const &vel) {}
+    virtual void m100MaxVelocityOverride(AxesFloat const &vel) {}
 
-    virtual void m101MaxAccelerationOverride(Axes<float, AxesSize> const &acc) {}
+    virtual void m101MaxAccelerationOverride(AxesFloat const &acc) {}
 
-    virtual void m102StepsPerUnitLengthOverride(Axes<float, AxesSize> const &spl) {}
+    virtual void m102StepsPerUnitLengthOverride(AxesFloat const &spl) {}
 };
 
 /*
+Parser accepts input line and calls corresponding callbacks.
+
 EBNF grammar
 
 digit = "0" .. "9"
