@@ -1,0 +1,13 @@
+BasedOnStyle: LLVM
+IndentWidth: 4
+
+Language: Cpp
+# Force pointers to the type for C++.
+PointerAlignment: Right
+ColumnLimit: 100
+Standard: Cpp11
+UseTab: Never
+AllowShortIfStatementsOnASingleLine: false
+AlwaysBreakTemplateDeclarations: true
+Cpp11BracedListStyle: true
+ExperimentalAutoDetectBinPacking: true
