@@ -20,18 +20,18 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
         ticksPerSecond_ = 1;
         currentPosition_.fill(0);
         mode_ = Absolute;
-        path_.push_back(currentPosition_);
     }
 
     void feedrateOverride(float feed) override {}
 
-    void linearMove(AxesFloat const &pos, float feed) override {
-        auto previousPosition = currentPosition_;
-        auto newPos = pos * stepsPerUnitLength_;
+    void linearMove(AxesFloat const &positionInUnits, float feed) override {
+        ensureStartPosition();
+        auto newPosition = positionInUnits * stepsPerUnitLength_;
         if (mode_ == Relative) {
-            newPos += castAxes<float>(currentPosition_);
+            newPosition += cast<float>(currentPosition_);
         }
-        applyAndCopyFiniteAxes(newPos, &currentPosition_, &lroundf);
+        auto previousPosition = currentPosition_;
+        tansformOnlyFinite(newPosition, &currentPosition_, &lroundf);
         if (previousPosition != currentPosition_) {
             path_.push_back(currentPosition_);
         }
@@ -41,6 +41,12 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
 
     void g1LinearMove(AxesFloat const &pos, float feed) override { linearMove(pos, feed); }
 
+    void ensureStartPosition() {
+        if (path_.empty()) {
+            path_.push_back(currentPosition_);
+        }
+    }
+
     void g4Wait(float sec) override {}
 
     void g28RunHomingCycle() override {}
@@ -49,16 +55,16 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
 
     void m100MaxVelocityOverride(AxesFloat const &vel) override {
         float tpsInv = 1.f / ticksPerSecond_;
-        copyFiniteAxes(vel * stepsPerUnitLength_ * tpsInv, &maxVelocity_);
+        copyOnlyFinite(vel * stepsPerUnitLength_ * tpsInv, &maxVelocity_);
     }
 
     void m101MaxAccelerationOverride(AxesFloat const &acc) override {
         float tpsInvSqr = 1.f / (ticksPerSecond_ * ticksPerSecond_);
-        copyFiniteAxes(acc * stepsPerUnitLength_ * tpsInvSqr, &maxAcceleration_);
+        copyOnlyFinite(acc * stepsPerUnitLength_ * tpsInvSqr, &maxAcceleration_);
     }
 
     void m102StepsPerUnitLengthOverride(AxesFloat const &spl) override {
-        copyFiniteAxes(spl, &stepsPerUnitLength_);
+        copyOnlyFinite(spl, &stepsPerUnitLength_);
     }
 
     std::vector<AxesInt> const &path() const { return path_; }

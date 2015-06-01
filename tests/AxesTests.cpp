@@ -128,7 +128,7 @@ TEST_F(Axes_Should, divide_on_value) {
 
 TEST_F(Axes_Should, cast_elements_to_another_type) {
     auto a = Af2{10.2f, 20.6f};
-    auto b = castAxes<int>(a);
+    auto b = cast<int>(a);
 
     EXPECT_THAT(a, ElementsAre(10.2f, 20.6f));
     EXPECT_THAT(b, ElementsAre(10, 20));
@@ -143,16 +143,16 @@ TEST_F(Axes_Should, calculate_norm) {
 
 TEST_F(Axes_Should, apply_function) {
     auto a = Af2{3.f, 4.f};
-    apply(a, [](float v){return v*10;});
+    applyInplace(a, [](float v){return v*10;});
 
-    EXPECT_THAT(applied(a, [](float v){return v*2;}), ElementsAre(60.f, 80.f));
+    EXPECT_THAT(apply(a, [](float v){return v*2;}), ElementsAre(60.f, 80.f));
     EXPECT_THAT(a, ElementsAre(30.f, 40.f));
 }
 
 TEST_F(Axes_Should, copy_finite_axes) {
     auto a = Af2{3.f, inf()};
     auto b = Af2{10.f, 10.f};
-    copyFiniteAxes(a, &b);
+    copyOnlyFinite(a, &b);
 
     EXPECT_THAT(a, ElementsAre(3.f, inf()));
     EXPECT_THAT(b, ElementsAre(3.f, 10.f));
