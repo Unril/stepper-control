@@ -2,8 +2,6 @@
 
 #include "Axes.h"
 
-#include <cstdint>
-
 namespace StepperControl {
 
 /* From "Turning Paths Into Trajectories Using Parabolic Blends"
@@ -16,8 +14,8 @@ tb_i = max_j(|v_i[j] - v_i-1[j]|/amax[j])
 v_i = (q_i+1 - q_i)/dT_i
 a_i = (v_i - v_i-1)/tb_i
 
+slow down factor
 f_i = sqrt(min(dT_i-1, dT_i)/tb_i)
-
 */
 template <size_t AxesSize>
 class TrajectoryGenerator {
@@ -70,10 +68,10 @@ class TrajectoryGenerator {
   private:
     void calculateTimeBetweenWaypointsAndInitialVelocitiesOfLinearSegments() {
         for (size_t i = 0; i < path_.size() - 1; i++) {
-            durations_[i] = 0.0;
+            durations_[i] = 0.0f;
             for (size_t j = 0; j < path_[i].size(); j++) {
                 durations_[i] =
-                    std::max(durations_[i], (abs(path_[i + 1][j] - path_[i][j]) / maxVelocity_[j]));
+                    std::max(durations_[i], (std::abs(path_[i + 1][j] - path_[i][j]) / maxVelocity_[j]));
             }
             velocities_[i] = cast<float>(path_[i + 1] - path_[i]) / durations_[i];
         }
@@ -94,7 +92,7 @@ class TrajectoryGenerator {
                     (i == 0) ? axesConstant<AxesSize>(0.f) : velocities_[i - 1];
                 AxesFloat nextVelocity =
                     (i == path_.size() - 1) ? axesConstant<AxesSize>(0.f) : velocities_[i];
-                blendDurations_[i] = 0.0;
+                blendDurations_[i] = 0.0f;
                 for (size_t j = 0; j < path_[i].size(); j++) {
                     blendDurations_[i] = std::max(
                         blendDurations_[i],
@@ -113,7 +111,7 @@ class TrajectoryGenerator {
                     auto maxDuration = std::min(
                         i == 0 ? std::numeric_limits<float>::max() : durations_[i - 1],
                         i == path_.size() - 1 ? std::numeric_limits<float>::max() : durations_[i]);
-                    slowDownFactors[i] = sqrt(maxDuration / blendDurations_[i]);
+                    slowDownFactors[i] = std::sqrt(maxDuration / blendDurations_[i]);
                 }
             }
 

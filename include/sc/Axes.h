@@ -2,8 +2,28 @@
 
 #include <array>
 #include <cmath>
+#include <cstdint>
+#include <stdexcept>
 
 namespace StepperControl {
+
+#ifdef NDEBUG
+
+#define scAssert(_Expression) ((void)0)
+
+#else /* NDEBUG */
+
+#define scAssert(_Expression)                                                                      \
+    do {                                                                                           \
+        if (!(_Expression))                                                                        \
+            throw std::logic_error((__FILE__ "(") + std::to_string(__LINE__) +                     \
+                                   ("): " #_Expression " "));                                      \
+    } while (false)
+
+#endif /* NDEBUG */
+
+// Axes
+
 template <typename T, size_t Size>
 using Axes = std::array<T, Size>;
 
@@ -185,7 +205,7 @@ inline T norm(Axes<T, Size> const &a) {
 }
 
 template <typename T, size_t Size, typename F>
-inline T accumulate(Axes<T, Size> const&a, F binaryFunc, T init = T{}) {
+inline T accumulate(Axes<T, Size> const &a, F binaryFunc, T init = T{}) {
     for (size_t i = 0; i < Size; ++i) {
         init = binaryFunc(a[i], init);
     }
@@ -226,5 +246,4 @@ inline std::ostream &operator<<(std::ostream &os, Axes<T, Size> const &obj) {
     }
     return os;
 }
-
 }
