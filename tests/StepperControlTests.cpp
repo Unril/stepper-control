@@ -49,7 +49,7 @@ struct MotorMock {
         int x, y, b;
     };
 
-    void setPixel(int x, int y, bool b) { set_.emplace_back(x, y, b); }
+    void setPixel(int x, int y, int b) { set_.emplace_back(x, y, b); }
 
     vector<Step> set_;
 };
@@ -118,19 +118,19 @@ TEST_F(SegmentsExecutor_Should, execute_one_linear_segment_with_negative_slope) 
     vector<MotorMock::Step> expected{
         {0, 0, 0},
         {0, 1, 0},
-        {-1, 2, 1},
+        {-1, 2, -1},
         {-1, 3, 0},
         {-1, 4, 0},
-        {-2, 5, 1},
+        {-2, 5, -1},
         {-2, 6, 0},
         {-2, 7, 0},
-        {-3, 8, 1},
+        {-3, 8, -1},
         {-3, 9, 0},
         {-3, 10, 0},
-        {-4, 11, 1},
+        {-4, 11, -1},
         {-4, 12, 0},
         {-4, 13, 0},
-        {-5, 14, 1},
+        {-5, 14, -1},
         {-5, 15, 0},
     };
     EXPECT_THAT(mm_.set_, ContainerEq(expected));
@@ -147,16 +147,16 @@ TEST_F(SegmentsExecutor_Should, execute_one_rising_parabolic_segment) {
         {1, 3, 0},
         {2, 4, 1},
         {2, 5, 0},
-        {2, 6, 0},
-        {3, 7, 1},
+        {3, 6, 1},
+        {3, 7, 0},
         {3, 8, 0},
         {3, 9, 0},
         {4, 10, 1},
         {4, 11, 0},
         {4, 12, 0},
         {4, 13, 0},
-        {4, 14, 0},
-        {5, 15, 1},
+        {5, 14, 1},
+        {5, 15, 0},
         {5, 16, 0},
         {5, 17, 0},
         {5, 18, 0},
@@ -177,20 +177,20 @@ TEST_F(SegmentsExecutor_Should, execute_one_falling_parabolic_segment) {
         {5, 3, 0},
         {5, 4, 0},
         {5, 5, 0},
-        {4, 6, 1},
-        {4, 7, 0},
+        {5, 6, 0},
+        {4, 7, -1},
         {4, 8, 0},
         {4, 9, 0},
         {4, 10, 0},
-        {3, 11, 1},
+        {3, 11, -1},
         {3, 12, 0},
         {3, 13, 0},
-        {2, 14, 1},
-        {2, 15, 0},
+        {3, 14, 0},
+        {2, 15, -1},
         {2, 16, 0},
-        {1, 17, 1},
+        {1, 17, -1},
         {1, 18, 0},
-        {0, 19, 1},
+        {0, 19, -1},
         {0, 20, 0},
     };
     EXPECT_THAT(mm_.set_, ContainerEq(expected));
@@ -203,20 +203,20 @@ TEST_F(SegmentsExecutor_Should, execute_one_rising_parabolic_segment_with_negati
     vector<MotorMock::Step> expected{
         {0, 0, 0},
         {0, 1, 0},
-        {-1, 2, 1},
+        {-1, 2, -1},
         {-1, 3, 0},
-        {-2, 4, 1},
+        {-2, 4, -1},
         {-2, 5, 0},
-        {-2, 6, 0},
-        {-3, 7, 1},
+        {-3, 6, -1},
+        {-3, 7, 0},
         {-3, 8, 0},
         {-3, 9, 0},
-        {-4, 10, 1},
+        {-4, 10, -1},
         {-4, 11, 0},
         {-4, 12, 0},
         {-4, 13, 0},
-        {-4, 14, 0},
-        {-5, 15, 1},
+        {-5, 14, -1},
+        {-5, 15, 0},
         {-5, 16, 0},
         {-5, 17, 0},
         {-5, 18, 0},
@@ -237,16 +237,16 @@ TEST_F(SegmentsExecutor_Should, execute_one_falling_parabolic_segment_with_negat
         {-5, 3, 0},
         {-5, 4, 0},
         {-5, 5, 0},
-        {-4, 6, 1},
-        {-4, 7, 0},
+        {-5, 6, 0},
+        {-4, 7, 1},
         {-4, 8, 0},
         {-4, 9, 0},
         {-4, 10, 0},
         {-3, 11, 1},
         {-3, 12, 0},
         {-3, 13, 0},
-        {-2, 14, 1},
-        {-2, 15, 0},
+        {-3, 14, 0},
+        {-2, 15, 1},
         {-2, 16, 0},
         {-1, 17, 1},
         {-1, 18, 0},
@@ -298,11 +298,11 @@ TEST_F(SegmentsExecutor_Should, execute_two_linear_segments) {
         {2, 4, 0},
         {3, 5, 1},
         {3, 6, 0},
-        {2, 7, 1},
+        {2, 7, -1},
         {2, 8, 0},
-        {1, 9, 1},
+        {1, 9, -1},
         {1, 10, 0},
-        {0, 11, 1},
+        {0, 11, -1},
         {0, 12, 0},
     };
     EXPECT_THAT(mm_.set_, ContainerEq(expected));
@@ -319,32 +319,45 @@ TEST_F(SegmentsExecutor_Should, execute_parabolic_segment_with_gradient_change) 
         {1, 4, 0},
         {1, 5, 0},
         {1, 6, 0},
-        {0, 7, 1},
+        {0, 7, -1},
         {0, 8, 0},
     };
     EXPECT_THAT(mm_.set_, ContainerEq(expected));
 }
-//
-//TEST_F(SegmentsExecutor_Should, execute_two_linear_segments_with_parabolic_blend) {
-//    segments_.emplace_back(0, 0, 4, 8);
-//    segments_.emplace_back(4, 8, 6, 4, 16);
-//    segments_.emplace_back(4, 16, 0, 24);
-//    process();
-//    vector<MotorMock::Step> expected{
-//        {0, 0, 0},
-//        {1, 1, 1},
-//        {1, 2, 0},
-//        {2, 3, 1},
-//        {2, 4, 0},
-//        {3, 5, 1},
-//        {3, 6, 0},
-//        {2, 7, 1},
-//        {2, 8, 0},
-//        {1, 9, 1},
-//        {1, 10, 0},
-//        {0, 11, 1},
-//        {0, 12, 0},
-//    };
-//    EXPECT_THAT(mm_.set_, ContainerEq(expected));
-//}
+
+TEST_F(SegmentsExecutor_Should, execute_two_linear_segments_with_parabolic_blend) {
+    segments_.emplace_back(0, 0, 4, 8);
+    segments_.emplace_back(4, 8, 6, 4, 16);
+    segments_.emplace_back(4, 16, 0, 24);
+    process();
+    vector<MotorMock::Step> expected{
+        {0, 0, 0},
+        {1, 1, 1},
+        {1, 2, 0},
+        {2, 3, 1},
+        {2, 4, 0},
+        {3, 5, 1},
+        {3, 6, 0},
+        {4, 7, 1},
+        {4, 8, 0},
+        {4, 9, 0},
+        {5, 10, 1},
+        {5, 11, 0},
+        {5, 12, 0},
+        {5, 13, 0},
+        {5, 14, 0},
+        {4, 15, -1},
+        {4, 16, 0},
+        {3, 17, -1},
+        {3, 18, 0},
+        {2, 19, -1},
+        {2, 20, 0},
+        {1, 21, -1},
+        {1, 22, 0},
+        {0, 23, -1},
+        {0, 24, 0},
+
+    };
+    EXPECT_THAT(mm_.set_, ContainerEq(expected));
+}
 }

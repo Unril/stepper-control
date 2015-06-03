@@ -8,11 +8,11 @@ struct Segment {
         auto dx1 = x2 - x0;
         auto dt = t2 - t0;
 
-        scAssert(abs(dx1)* 2 <= dt );
+        scAssert(abs(dx1) * 2 <= dt);
 
         denom = 2 * dt;
-        v = 2 * dx1;
-        a = 0;
+        vel = 2 * dx1;
+        accHalf = 0;
         err = 0;
     }
 
@@ -21,35 +21,40 @@ struct Segment {
         auto dx2 = x2 - x1;
         auto dt = (t2 - t0) / 2;
 
-        scAssert(abs(dx1)* 2 <= dt);
-        scAssert(abs(dx2)* 2 <= dt);
+        scAssert(abs(dx1) * 2 <= dt);
+        scAssert(abs(dx2) * 2 <= dt);
 
-        denom = 2 * dt * dt;
-        v = 2 * dx1 * dt;
-        a = dx2 - dx1;
+        denom = 4 * dt * dt;
+        vel = 4 * dx1 * dt;
+        accHalf = dx2 - dx1;
         err = 0;
     }
 
-    inline void tick(bool *running, bool *high) {
+    inline void tick(bool *running, int8_t *high) {
         if (t0 == t2) {
             *running = false;
-           // scAssert(x0 == x2);
+            scAssert(x0 == x2);
             return;
         }
-        v += a;
-        err += v;
-        auto sx = v >= 0 ? 1 : -1;
-        if (*high = 2 * err * sx >= denom) {
+
+        vel += accHalf;
+        err += vel;
+        auto sx = vel >= 0 ? 1 : -1;
+        if (2 * err * sx >= denom) {
             err -= sx * denom;
             x0 += sx;
+            *high = sx;
+        } else {
+            *high = 0;
         }
+        vel += accHalf;
         t0 += 1;
     }
 
     int32_t x0, t0, x2, t2;
 
   private:
-    int32_t v, a, err, denom;
+    int32_t vel, accHalf, err, denom;
 };
 
 template <size_t AxesSize>
@@ -105,7 +110,7 @@ class SegmentsExecutor {
     T *t_;
 
   private:
-    bool high_ = false;
+    int8_t high_ = 0;
     bool running_ = false;
     Segments segments_;
     typename Segments::iterator s_;
