@@ -170,6 +170,90 @@ inline Axes<T, Size> operator/(T a, Axes<T, Size> b) {
     return b;
 }
 
+// Relation
+
+template <typename T, size_t Size>
+inline Axes<bool, Size> lt(Axes<T, Size> a, Axes<T, Size> const &b) {
+    Axes<bool, Size> res;
+    for (size_t i = 0; i < Size; ++i) {
+        res[i] = a[i] < b[i];
+    }
+    return res;
+}
+
+template <typename T, size_t Size>
+inline Axes<bool, Size> le(Axes<T, Size> const &a, Axes<T, Size> const &b) {
+    Axes<bool, Size> res;
+    for (size_t i = 0; i < Size; ++i) {
+        res[i] = a[i] <= b[i];
+    }
+    return res;
+}
+
+template <typename T, size_t Size>
+inline Axes<bool, Size> gt(Axes<T, Size> const &a, Axes<T, Size> const &b) {
+    Axes<bool, Size> res;
+    for (size_t i = 0; i < Size; ++i) {
+        res[i] = a[i] > b[i];
+    }
+    return res;
+}
+
+template <typename T, size_t Size>
+inline Axes<bool, Size> ge(Axes<T, Size> const &a, Axes<T, Size> const &b) {
+    Axes<bool, Size> res;
+    for (size_t i = 0; i < Size; ++i) {
+        res[i] = a[i] >= b[i];
+    }
+    return res;
+}
+
+template <typename T, size_t Size>
+inline Axes<bool, Size> eq(Axes<T, Size> const &a, Axes<T, Size> const &b) {
+    Axes<bool, Size> res;
+    for (size_t i = 0; i < Size; ++i) {
+        res[i] = a[i] == b[i];
+    }
+    return res;
+}
+
+template <typename T, size_t Size>
+inline Axes<bool, Size> neq(Axes<T, Size> const &a, Axes<T, Size> const &b) {
+    Axes<bool, Size> res;
+    for (size_t i = 0; i < Size; ++i) {
+        res[i] = a[i] != b[i];
+    }
+    return res;
+}
+
+template <size_t Size>
+inline Axes<bool, Size> not(Axes<bool, Size> a) {
+    for (size_t i = 0; i < Size; ++i) {
+        a[i] = !a[i];
+    }
+    return a;
+}
+
+template <size_t Size>
+inline bool all(Axes<bool, Size> a) {
+    for (size_t i = 0; i < Size; ++i) {
+        if (!a[i]) {
+            return false;
+        }
+    }
+    return true;
+}
+
+template <size_t Size>
+inline bool any(Axes<bool, Size> a) {
+    for (size_t i = 0; i < Size; ++i) {
+        if (a[i]) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // Other
 
 inline float inf() { return std::numeric_limits<float>::infinity(); }
@@ -186,6 +270,14 @@ inline Axes<M, Size> cast(Axes<T, Size> const &b) {
     Axes<M, Size> a;
     for (size_t i = 0; i < Size; ++i) {
         a[i] = static_cast<M>(b[i]);
+    }
+    return a;
+}
+
+template <typename T, size_t Size>
+inline Axes<T, Size> axesAbs(Axes<T, Size> a) {
+    for (size_t i = 0; i < Size; ++i) {
+        a[i] = abs(a[i]);
     }
     return a;
 }
