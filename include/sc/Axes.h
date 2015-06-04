@@ -330,9 +330,11 @@ template <typename T, size_t Size>
 inline void copyOnlyFinite(Axes<T, Size> const &src, Axes<T, Size> *dest) {
     tansformOnlyFinite(src, dest, [](T t) { return t; });
 }
+}
 
+namespace std {
 template <typename T, size_t Size>
-inline std::ostream &operator<<(std::ostream &os, Axes<T, Size> const &obj) {
+inline std::ostream &operator<<(std::ostream &os, StepperControl::Axes<T, Size> const &obj) {
     for (auto a : obj) {
         os << a << " ";
     }

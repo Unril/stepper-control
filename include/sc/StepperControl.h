@@ -7,7 +7,7 @@ template <size_t AxesSize>
 struct Segment {
     using Ai = Axes<int32_t, AxesSize>;
 
-    Segment(int32_t t0, Ai x0, int32_t t2, Ai x2) : x0(x0), x2(x2), t0(t0), t2(t2) {
+    Segment(int32_t t0, Ai const &x0, int32_t t2, Ai const &x2) : x0(x0), x2(x2), t0(t0), t2(t2) {
         auto Dx1 = x2 - x0;
         auto Dt = t2 - t0;
 
@@ -20,7 +20,8 @@ struct Segment {
         error_.fill(0);
     }
 
-    Segment(int32_t t0, Ai x0, Ai x1, int32_t t2, Ai x2) : x0(x0), x2(x2), t0(t0), t2(t2) {
+    Segment(int32_t t0, Ai const &x0, Ai const &x1, int32_t t2, Ai const &x2)
+        : x0(x0), x2(x2), t0(t0), t2(t2) {
         auto Dx1 = x1 - x0;
         auto Dx2 = x2 - x1;
         auto twiceDt = t2 - t0;
@@ -37,10 +38,11 @@ struct Segment {
 
     inline bool isRunning() const {
         scAssert(t0 != t2 || all(eq(x0, x2)));
+
         return t0 != t2;
     }
 
-    inline void tick(Ai &step) {
+    inline void tick(Ai &stepDirection) {
         scAssert(isRunning());
 
         for (size_t i = 0; i < AxesSize; i++) {
@@ -50,17 +52,17 @@ struct Segment {
                 if (2 * error_[i] >= denominator_) {
                     error_[i] -= denominator_;
                     x0[i] += 1;
-                    step[i] = 1;
+                    stepDirection[i] = 1;
                 } else {
-                    step[i] = 0;
+                    stepDirection[i] = 0;
                 }
             } else {
                 if (-2 * error_[i] >= denominator_) {
                     error_[i] += denominator_;
                     x0[i] -= 1;
-                    step[i] = -1;
+                    stepDirection[i] = -1;
                 } else {
-                    step[i] = 0;
+                    stepDirection[i] = 0;
                 }
             }
             velocity_[i] += halfAcceleration_[i];
@@ -101,11 +103,16 @@ class SegmentsGenerator {
     std::vector<Segment<AxesSize>> segments_;
 };
 
-template <size_t AxesSize, typename T>
+template <size_t AxesSize, template <size_t> class T>
 class SegmentsExecutor {
   public:
     using Segments = std::vector<Segment<AxesSize>>;
     using Ai = Axes<int32_t, AxesSize>;
+
+    SegmentsExecutor() {
+        running_ = false;
+        stepDirection_.fill(0);
+    }
 
     void setSegments(Segments const &segments) { segments_ = segments; }
 
@@ -113,25 +120,19 @@ class SegmentsExecutor {
         if (!segments_.empty()) {
             running_ = true;
         }
-        step_.fill(0);
-        s_ = segments_.begin();
+        stepDirection_.fill(0);
+        segment_ = segments_.begin();
     }
 
     void tick() {
-        for (size_t i = 0; i < AxesSize; i++) {
-            t_->setPixel(i, s_->x0[i], s_->t0, step_[i]);
-        }
-        running_ = s_->isRunning();
-        if (running_) {
-            s_->tick(step_);
+        t_->write(segment_->x0, segment_->t0, stepDirection_);
+        if (running_ = segment_->isRunning()) {
+            segment_->tick(stepDirection_);
+        } else if (++segment_ != segments_.end()) {
+            running_ = true;
+            segment_->tick(stepDirection_);
         } else {
-            ++s_;
-            if (s_ == segments_.end()) {
-                stop();
-            } else {
-                running_ = true;
-                s_->tick(step_);
-            }
+            stop();
         }
     }
 
@@ -139,12 +140,12 @@ class SegmentsExecutor {
 
     void stop() {}
 
-    T *t_;
+    T<AxesSize> *t_;
 
   private:
-    Ai step_;
-    bool running_ = false;
+    bool running_;
+    Ai stepDirection_;
     Segments segments_;
-    typename Segments::iterator s_;
+    typename Segments::iterator segment_;
 };
 }
