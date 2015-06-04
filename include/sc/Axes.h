@@ -10,6 +10,7 @@ namespace StepperControl {
 #ifdef NDEBUG
 
 #define scAssert(_Expression) ((void)0)
+#define scExecute(_Expression) ((void)0)
 
 #else /* NDEBUG */
 
@@ -19,6 +20,8 @@ namespace StepperControl {
             throw std::logic_error((__FILE__ "(") + std::to_string(__LINE__) +                     \
                                    ("): " #_Expression " "));                                      \
     } while (false)
+
+#define scExecute(_Expression) do { _Expression ; } while(false)
 
 #endif /* NDEBUG */
 
@@ -172,6 +175,7 @@ inline Axes<T, Size> operator/(T a, Axes<T, Size> b) {
 
 // Relation
 
+// less than
 template <typename T, size_t Size>
 inline Axes<bool, Size> lt(Axes<T, Size> a, Axes<T, Size> const &b) {
     Axes<bool, Size> res;
@@ -181,6 +185,7 @@ inline Axes<bool, Size> lt(Axes<T, Size> a, Axes<T, Size> const &b) {
     return res;
 }
 
+// less or equal than
 template <typename T, size_t Size>
 inline Axes<bool, Size> le(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     Axes<bool, Size> res;
@@ -190,6 +195,7 @@ inline Axes<bool, Size> le(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     return res;
 }
 
+// greater than
 template <typename T, size_t Size>
 inline Axes<bool, Size> gt(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     Axes<bool, Size> res;
@@ -199,6 +205,7 @@ inline Axes<bool, Size> gt(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     return res;
 }
 
+// greater or equal than
 template <typename T, size_t Size>
 inline Axes<bool, Size> ge(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     Axes<bool, Size> res;
@@ -208,6 +215,7 @@ inline Axes<bool, Size> ge(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     return res;
 }
 
+// equal to
 template <typename T, size_t Size>
 inline Axes<bool, Size> eq(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     Axes<bool, Size> res;
@@ -217,6 +225,7 @@ inline Axes<bool, Size> eq(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     return res;
 }
 
+// not equal to
 template <typename T, size_t Size>
 inline Axes<bool, Size> neq(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     Axes<bool, Size> res;
@@ -226,6 +235,7 @@ inline Axes<bool, Size> neq(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     return res;
 }
 
+// negate
 template <size_t Size>
 inline Axes<bool, Size> not(Axes<bool, Size> a) {
     for (size_t i = 0; i < Size; ++i) {
@@ -234,8 +244,9 @@ inline Axes<bool, Size> not(Axes<bool, Size> a) {
     return a;
 }
 
+// are all true
 template <size_t Size>
-inline bool all(Axes<bool, Size> a) {
+inline bool all(Axes<bool, Size> const &a) {
     for (size_t i = 0; i < Size; ++i) {
         if (!a[i]) {
             return false;
@@ -244,8 +255,9 @@ inline bool all(Axes<bool, Size> a) {
     return true;
 }
 
+// is any true
 template <size_t Size>
-inline bool any(Axes<bool, Size> a) {
+inline bool any(Axes<bool, Size> const &a) {
     for (size_t i = 0; i < Size; ++i) {
         if (a[i]) {
             return true;
