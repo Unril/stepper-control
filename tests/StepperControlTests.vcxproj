@@ -87,13 +87,14 @@
     <ClCompile Include="AxesTests.cpp" />
     <ClCompile Include="GCodeInterpreterTests.cpp" />
     <ClCompile Include="GCodeParserTests.cpp" />
+    <ClCompile Include="SegmentsGeneratorTests.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="Main.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Use</PrecompiledHeader>
     </ClCompile>
-    <ClCompile Include="StepperControlTests.cpp" />
+    <ClCompile Include="SegmentsExecutorTests.cpp" />
     <ClCompile Include="TrajectoryGeneratorTests.cpp" />
   </ItemGroup>
   <ItemGroup>

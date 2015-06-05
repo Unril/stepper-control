@@ -114,21 +114,6 @@ class GCodeParser {
         return true;
     }
 
-    bool signedInteger(int32_t *value) {
-        char signChar = 0;
-        if (isSign()) {
-            signChar = sym();
-            nextsym();
-        }
-        if (!integer(value)) {
-            return false;
-        }
-        if (signChar == '-') {
-            *value = -*value;
-        }
-        return true;
-    }
-
     bool floating(float *value) {
         if (!isDigit() && !isSign() && sym() != '.') {
             return false;
@@ -391,7 +376,6 @@ class GCodeParser {
         return expectNewLine();
     }
 
-    inline bool isEnd() const { return sym() == '\0'; }
     inline bool isGCommand() const { return toupper(sym()) == 'G'; }
     inline bool isMCommand() const { return toupper(sym()) == 'M'; }
     inline bool isFeedrate() const { return toupper(sym()) == 'F'; }

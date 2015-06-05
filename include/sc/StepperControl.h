@@ -3,81 +3,74 @@
 #include "Axes.h"
 
 namespace StepperControl {
+
 template <size_t AxesSize>
 struct Segment {
     using Ai = Axes<int32_t, AxesSize>;
 
+    // Linear segment.
+    /* Parabolic segment.
+       It is set by start and end points p0-p1.
+    x  ^
+       |
+   x1  +-------p1
+       |     / |    dt = t1 - t0, ticks
+       |   /   |    dx = x1 - x0, steps
+       | /     |
+   x0  p0------+---> t
+       t0        t1
+    */
     Segment(int32_t dt, Ai const &dx) : dt(dt) {
         scAssert(dt > 0);
-        scAssert(all(le(axesAbs(dx) * 2, axesConstant<AxesSize>(dt))) && "dx <= dt/2");
+        // dx <= dt/2
+        scAssert(all(le(axesAbs(dx) * 2, axesConstant<AxesSize>(dt))));
 
-        denominator_ = 2 * dt;
-        velocity_ = 2 * dx;
-        halfAcceleration_.fill(0);
-        error_.fill(0);
+        denominator = 2 * dt;
+        velocity = 2 * dx;
+        halfAcceleration.fill(0);
+        error.fill(0);
     }
 
+    /* Parabolic segment.
+       It is set by endpoints of two tangent to parabola segments p0-p1 and p1-p2.
+    x  ^
+   x1  +----p1         twiceDt = t2 - t0, ticks
+       |   /| \        dx1 = x1 - x0, steps
+       |  / |   \      dx2 = x2 - x1, steps
+   x2  +-/--|-----p2
+       |/   |     |
+   x0  p0---+-----+---> t
+       t0   t1    t2
+    */
     Segment(int32_t twiceDt, Ai const &dx1, Ai const &dx2) : dt(twiceDt) {
         scAssert(twiceDt > 0);
-        scAssert(all(le(axesAbs(dx1) * 4, axesConstant<AxesSize>(twiceDt))) && "dx1 <= dt/2");
-        scAssert(all(le(axesAbs(dx2) * 4, axesConstant<AxesSize>(twiceDt))) && "dx2 <= dt/2");
+        // dx1 <= dt1/2 && dx2 <= dt2/2
+        scAssert(all(le(axesAbs(dx1) * 4, axesConstant<AxesSize>(twiceDt))));
+        scAssert(all(le(axesAbs(dx2) * 4, axesConstant<AxesSize>(twiceDt))));
 
-        denominator_ = twiceDt * twiceDt;
-        velocity_ = 2 * dx1 * twiceDt;
-        halfAcceleration_ = dx2 - dx1;
-        error_.fill(0);
+        denominator = twiceDt * twiceDt;
+        velocity = 2 * dx1 * twiceDt;
+        halfAcceleration = dx2 - dx1;
+        error.fill(0);
     }
 
-    inline bool isCompleted() const { return dt == 0; }
-
-    inline void tick(Ai &positionDelta, Ai &position) {
-        scAssert(!isCompleted());
-
-        for (size_t i = 0; i < AxesSize; i++) {
-            // Integrate fist half of interval
-            velocity_[i] += halfAcceleration_[i];
-
-            // Update difference between rounded and actual position.
-            error_[i] += velocity_[i];
-
-            if (velocity_[i] >= 0) {
-                // Positive or zero slope.
-                // error >= 0.5
-                if (2 * error_[i] >= denominator_) {
-                    // error -= 1
-                    error_[i] -= denominator_;
-
-                    // Update position and it's delta
-                    position[i] += 1;
-                    positionDelta[i] = 1;
-                } else {
-                    positionDelta[i] = 0;
-                }
-            } else {
-                // Negative slope.
-                // -error >= 0.5
-                if (-2 * error_[i] >= denominator_) {
-                    // error += 1
-                    error_[i] += denominator_;
-
-                    // Update position and it's delta
-                    position[i] -= 1;
-                    positionDelta[i] = -1;
-                } else {
-                    positionDelta[i] = 0;
-                }
-            }
-            // Integrate second half of interval
-            velocity_[i] += halfAcceleration_[i];
-        }
-
-        // Decrement remaining time.
-        --dt;
+    friend bool operator==(Segment const &lhs, Segment const &rhs) {
+        return lhs.dt == rhs.dt && lhs.denominator == rhs.denominator &&
+               lhs.velocity == rhs.velocity && lhs.halfAcceleration == rhs.halfAcceleration &&
+               lhs.error == rhs.error;
     }
 
-  private:
-    Ai velocity_, halfAcceleration_, error_;
-    int32_t dt, denominator_;
+    friend bool operator!=(Segment const &lhs, Segment const &rhs) { return !(lhs == rhs); }
+
+    friend std::ostream &operator<<(std::ostream &os, Segment const &obj) {
+        return os << std::endl
+                  << "dt: " << obj.dt << " denominator: " << obj.denominator
+                  << " velocity: " << obj.velocity << " halfAcceleration: " << obj.halfAcceleration
+                  << " error: " << obj.error;
+    }
+
+    int32_t dt, denominator;
+    Ai velocity, halfAcceleration, error;
 };
 
 template <size_t AxesSize>
@@ -95,7 +88,52 @@ class SegmentsGenerator {
         blendDurations_ = blendDurations;
     }
 
-    void update() {}
+    void update() {
+        scAssert(!path_.empty());
+        scAssert(path_.size() - 1 == durations_.size());
+        scAssert(path_.size() == blendDurations_.size());
+
+        segments_.clear();
+        Ai zero;
+        zero.fill(0);
+        for (size_t i = 0; i < path_.size(); i++) {
+            auto p = path_[i];
+            int32_t blendDuration = lround(blendDurations_[i]);
+            if (blendDuration > 0) {
+                if (i == 0) {
+                    // beginning
+                    int32_t durationX2 = lround(2.f * durations_[i]);
+                    auto p2 = blendDuration * (path_[i + 1] - path_[i]) / durationX2;
+                    segments_.emplace_back(blendDuration, zero, p2);
+                } else if (i == path_.size() - 1) {
+                    // end
+                    auto pPrev = path_[i - 1];
+                    auto pNext = p;
+
+                    auto v1 = cast<float>(p - pPrev) / durations_[i - 1];
+
+                    segments_.emplace_back(blendDuration, cast<int32_t>(0.5f * blendDuration * v1),
+                                           zero);
+                } else {
+                    // middle
+                    auto pPrev = path_[i - 1];
+                    auto pNext = path_[i + 1];
+
+                    auto v1 = cast<float>(p - pPrev) / (durations_[i - 1]);
+                    auto v2 = cast<float>(pNext - p) / (durations_[i]);
+                    segments_.emplace_back(blendDuration, cast<int32_t>(0.5f * blendDuration * v1),
+                                           cast<int32_t>(0.5f * blendDuration * v2));
+                }
+            }
+            if (i != path_.size() - 1) {
+                auto const &pNext = path_[i + 1];
+                auto duration = durations_[i];
+                if (duration - blendDurations_[i] / 2 - blendDurations_[i + 1] > 0) {
+                    segments_.emplace_back(duration, pNext - p);
+                }
+            }
+        }
+    }
 
     Segments const &segments() const { return segments_; }
 
@@ -109,19 +147,14 @@ class SegmentsGenerator {
 template <size_t AxesSize, template <size_t> class TMotor, typename TTicker>
 class SegmentsExecutor {
   public:
-    using Segments = std::vector<Segment<AxesSize>>;
+    using Sg = Segment<AxesSize>;
+    using Segments = std::vector<Sg>;
     using Ai = Axes<int32_t, AxesSize>;
 
     SegmentsExecutor(TMotor<AxesSize> *motor, TTicker *ticker)
         : running_(false), motor_(motor), ticker_(ticker), ticksPerSecond_(1) {
         scAssert(motor_ && ticker_);
-        positionDelta_.fill(0);
-        position_.fill(0);
     }
-
-    Ai const &position() const { return position_; }
-
-    void setPosition(Ai const &position) { position_ = position; }
 
     int32_t ticksPerSecond() const { return ticksPerSecond_; }
 
@@ -136,22 +169,19 @@ class SegmentsExecutor {
         if (!segments_.empty()) {
             running_ = true;
         }
-        positionDelta_.fill(0);
-        segment_ = segments_.begin();
+        sg_ = segments_.begin();
 
         // Start timer.
         ticker_->attach_us(this, &SegmentsExecutor::tick, 1000000 / ticksPerSecond_);
     }
 
     void tick() {
-        // Update stepper position if required.
-        motor_->write(position_, positionDelta_);
-        if (!segment_->isCompleted()) {
+        if (sg_->dt != 0) {
             // Integrate next interval.
-            segment_->tick(positionDelta_, position_);
-        } else if (++segment_ != segments_.end()) {
+            tickI<0>();
+        } else if (++sg_ != segments_.end()) {
             // If there is next segment then integrate it's first interval.
-            segment_->tick(positionDelta_, position_);
+            tickI<0>();
         } else {
             // No segments left.
             stop();
@@ -166,13 +196,60 @@ class SegmentsExecutor {
     }
 
   private:
+    template <size_t i>
+    FORCE_INLINE void tickI() {
+        // Integrate fist half of interval
+        sg_->velocity[i] += sg_->halfAcceleration[i];
+
+        // Update difference between rounded and actual position.
+        sg_->error[i] += sg_->velocity[i];
+
+        if (sg_->velocity[i] >= 0) {
+            // Positive or zero slope.
+            // error >= 0.5
+            if (2 * sg_->error[i] >= sg_->denominator) {
+                // error -= 1
+                sg_->error[i] -= sg_->denominator;
+                // Step in positive direcion.
+                motor_->template write<i, 1>();
+            } else {
+                // No steps
+                motor_->template write<i, 0>();
+            }
+        } else {
+            // Negative slope.
+            // -error >= 0.5
+            if (-2 * sg_->error[i] >= sg_->denominator) {
+                // error += 1
+                sg_->error[i] += sg_->denominator;
+                // Step in negative direction
+                motor_->template write<i, -1>();
+            } else {
+                // No steps
+                motor_->template write<i, 0>();
+            }
+        }
+        // Integrate second half of interval
+        sg_->velocity[i] += sg_->halfAcceleration[i];
+
+        // Integrate next axis.
+        tickI<i + 1>();
+    }
+
+    template <>
+    FORCE_INLINE void tickI<AxesSize>() {
+        // Update time.
+        --sg_->dt;
+
+        // Notify motor about integration end.
+        motor_->update();
+    }
+
     bool running_;
     TMotor<AxesSize> *motor_;
     TTicker *ticker_;
-    Ai positionDelta_;
-    Ai position_;
     Segments segments_;
-    typename Segments::iterator segment_;
+    typename Segments::iterator sg_;
     int32_t ticksPerSecond_;
 };
 }

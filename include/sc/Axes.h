@@ -9,10 +9,20 @@ namespace StepperControl {
 
 #ifdef NDEBUG
 
+#ifdef __GNUG__
+#define FORCE_INLINE __attribute__((always_inline))
+#elif defined(_MSC_VER)
+#define FORCE_INLINE __forceinline
+#else
+#define FORCE_INLINE inline
+#endif
+
 #define scAssert(_Expression) ((void)0)
 #define scExecute(_Expression) ((void)0)
 
 #else /* NDEBUG */
+
+#define FORCE_INLINE inline
 
 #define scAssert(_Expression)                                                                      \
     do {                                                                                           \
@@ -21,7 +31,10 @@ namespace StepperControl {
                                    ("): " #_Expression " "));                                      \
     } while (false)
 
-#define scExecute(_Expression) do { _Expression ; } while(false)
+#define scExecute(_Expression)                                                                     \
+    do {                                                                                           \
+        _Expression;                                                                               \
+    } while (false)
 
 #endif /* NDEBUG */
 
@@ -33,7 +46,7 @@ using Axes = std::array<T, Size>;
 // Addition
 
 template <typename T, size_t Size>
-inline Axes<T, Size> &operator+=(Axes<T, Size> &a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<T, Size> &operator+=(Axes<T, Size> &a, Axes<T, Size> const &b) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] += b[i];
     }
@@ -41,7 +54,7 @@ inline Axes<T, Size> &operator+=(Axes<T, Size> &a, Axes<T, Size> const &b) {
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> &operator+=(Axes<T, Size> &a, T b) {
+FORCE_INLINE Axes<T, Size> &operator+=(Axes<T, Size> &a, T b) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] += b;
     }
@@ -49,24 +62,24 @@ inline Axes<T, Size> &operator+=(Axes<T, Size> &a, T b) {
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> operator+(Axes<T, Size> a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<T, Size> operator+(Axes<T, Size> a, Axes<T, Size> const &b) {
     return a += b;
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> operator+(Axes<T, Size> a, T b) {
+FORCE_INLINE Axes<T, Size> operator+(Axes<T, Size> a, T b) {
     return a += b;
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> operator+(T a, Axes<T, Size> b) {
+FORCE_INLINE Axes<T, Size> operator+(T a, Axes<T, Size> b) {
     return b += a;
 }
 
 // Subtraction and negation
 
 template <typename T, size_t Size>
-inline Axes<T, Size> operator-(Axes<T, Size> a) {
+FORCE_INLINE Axes<T, Size> operator-(Axes<T, Size> a) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] = -a[i];
     }
@@ -74,7 +87,7 @@ inline Axes<T, Size> operator-(Axes<T, Size> a) {
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> &operator-=(Axes<T, Size> &a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<T, Size> &operator-=(Axes<T, Size> &a, Axes<T, Size> const &b) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] -= b[i];
     }
@@ -82,7 +95,7 @@ inline Axes<T, Size> &operator-=(Axes<T, Size> &a, Axes<T, Size> const &b) {
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> &operator-=(Axes<T, Size> &a, T b) {
+FORCE_INLINE Axes<T, Size> &operator-=(Axes<T, Size> &a, T b) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] -= b;
     }
@@ -90,24 +103,24 @@ inline Axes<T, Size> &operator-=(Axes<T, Size> &a, T b) {
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> operator-(Axes<T, Size> a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<T, Size> operator-(Axes<T, Size> a, Axes<T, Size> const &b) {
     return a -= b;
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> operator-(Axes<T, Size> a, T b) {
+FORCE_INLINE Axes<T, Size> operator-(Axes<T, Size> a, T b) {
     return a -= b;
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> operator-(T a, Axes<T, Size> b) {
+FORCE_INLINE Axes<T, Size> operator-(T a, Axes<T, Size> b) {
     return (-b) += a;
 }
 
 // Multiplication
 
 template <typename T, size_t Size>
-inline Axes<T, Size> &operator*=(Axes<T, Size> &a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<T, Size> &operator*=(Axes<T, Size> &a, Axes<T, Size> const &b) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] *= b[i];
     }
@@ -115,7 +128,7 @@ inline Axes<T, Size> &operator*=(Axes<T, Size> &a, Axes<T, Size> const &b) {
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> &operator*=(Axes<T, Size> &a, T b) {
+FORCE_INLINE Axes<T, Size> &operator*=(Axes<T, Size> &a, T b) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] *= b;
     }
@@ -123,24 +136,24 @@ inline Axes<T, Size> &operator*=(Axes<T, Size> &a, T b) {
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> operator*(Axes<T, Size> a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<T, Size> operator*(Axes<T, Size> a, Axes<T, Size> const &b) {
     return a *= b;
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> operator*(Axes<T, Size> a, T b) {
+FORCE_INLINE Axes<T, Size> operator*(Axes<T, Size> a, T b) {
     return a *= b;
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> operator*(T a, Axes<T, Size> b) {
+FORCE_INLINE Axes<T, Size> operator*(T a, Axes<T, Size> b) {
     return b *= a;
 }
 
 // Division
 
 template <typename T, size_t Size>
-inline Axes<T, Size> &operator/=(Axes<T, Size> &a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<T, Size> &operator/=(Axes<T, Size> &a, Axes<T, Size> const &b) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] /= b[i];
     }
@@ -148,7 +161,7 @@ inline Axes<T, Size> &operator/=(Axes<T, Size> &a, Axes<T, Size> const &b) {
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> &operator/=(Axes<T, Size> &a, T b) {
+FORCE_INLINE Axes<T, Size> &operator/=(Axes<T, Size> &a, T b) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] /= b;
     }
@@ -156,17 +169,17 @@ inline Axes<T, Size> &operator/=(Axes<T, Size> &a, T b) {
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> operator/(Axes<T, Size> a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<T, Size> operator/(Axes<T, Size> a, Axes<T, Size> const &b) {
     return a /= b;
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> operator/(Axes<T, Size> a, T b) {
+FORCE_INLINE Axes<T, Size> operator/(Axes<T, Size> a, T b) {
     return a /= b;
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> operator/(T a, Axes<T, Size> b) {
+FORCE_INLINE Axes<T, Size> operator/(T a, Axes<T, Size> b) {
     for (size_t i = 0; i < Size; ++i) {
         b[i] = a / b[i];
     }
@@ -177,7 +190,7 @@ inline Axes<T, Size> operator/(T a, Axes<T, Size> b) {
 
 // less than
 template <typename T, size_t Size>
-inline Axes<bool, Size> lt(Axes<T, Size> a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<bool, Size> lt(Axes<T, Size> a, Axes<T, Size> const &b) {
     Axes<bool, Size> res;
     for (size_t i = 0; i < Size; ++i) {
         res[i] = a[i] < b[i];
@@ -187,7 +200,7 @@ inline Axes<bool, Size> lt(Axes<T, Size> a, Axes<T, Size> const &b) {
 
 // less or equal than
 template <typename T, size_t Size>
-inline Axes<bool, Size> le(Axes<T, Size> const &a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<bool, Size> le(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     Axes<bool, Size> res;
     for (size_t i = 0; i < Size; ++i) {
         res[i] = a[i] <= b[i];
@@ -197,7 +210,7 @@ inline Axes<bool, Size> le(Axes<T, Size> const &a, Axes<T, Size> const &b) {
 
 // greater than
 template <typename T, size_t Size>
-inline Axes<bool, Size> gt(Axes<T, Size> const &a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<bool, Size> gt(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     Axes<bool, Size> res;
     for (size_t i = 0; i < Size; ++i) {
         res[i] = a[i] > b[i];
@@ -207,7 +220,7 @@ inline Axes<bool, Size> gt(Axes<T, Size> const &a, Axes<T, Size> const &b) {
 
 // greater or equal than
 template <typename T, size_t Size>
-inline Axes<bool, Size> ge(Axes<T, Size> const &a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<bool, Size> ge(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     Axes<bool, Size> res;
     for (size_t i = 0; i < Size; ++i) {
         res[i] = a[i] >= b[i];
@@ -217,7 +230,7 @@ inline Axes<bool, Size> ge(Axes<T, Size> const &a, Axes<T, Size> const &b) {
 
 // equal to
 template <typename T, size_t Size>
-inline Axes<bool, Size> eq(Axes<T, Size> const &a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<bool, Size> eq(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     Axes<bool, Size> res;
     for (size_t i = 0; i < Size; ++i) {
         res[i] = a[i] == b[i];
@@ -227,7 +240,7 @@ inline Axes<bool, Size> eq(Axes<T, Size> const &a, Axes<T, Size> const &b) {
 
 // not equal to
 template <typename T, size_t Size>
-inline Axes<bool, Size> neq(Axes<T, Size> const &a, Axes<T, Size> const &b) {
+FORCE_INLINE Axes<bool, Size> neq(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     Axes<bool, Size> res;
     for (size_t i = 0; i < Size; ++i) {
         res[i] = a[i] != b[i];
@@ -237,7 +250,7 @@ inline Axes<bool, Size> neq(Axes<T, Size> const &a, Axes<T, Size> const &b) {
 
 // negate
 template <size_t Size>
-inline Axes<bool, Size> not(Axes<bool, Size> a) {
+FORCE_INLINE Axes<bool, Size> not(Axes<bool, Size> a) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] = !a[i];
     }
@@ -246,7 +259,7 @@ inline Axes<bool, Size> not(Axes<bool, Size> a) {
 
 // are all true
 template <size_t Size>
-inline bool all(Axes<bool, Size> const &a) {
+FORCE_INLINE bool all(Axes<bool, Size> const &a) {
     for (size_t i = 0; i < Size; ++i) {
         if (!a[i]) {
             return false;
@@ -257,7 +270,7 @@ inline bool all(Axes<bool, Size> const &a) {
 
 // is any true
 template <size_t Size>
-inline bool any(Axes<bool, Size> const &a) {
+FORCE_INLINE bool any(Axes<bool, Size> const &a) {
     for (size_t i = 0; i < Size; ++i) {
         if (a[i]) {
             return true;
@@ -268,17 +281,17 @@ inline bool any(Axes<bool, Size> const &a) {
 
 // Other
 
-inline float inf() { return std::numeric_limits<float>::infinity(); }
+FORCE_INLINE float inf() { return std::numeric_limits<float>::infinity(); }
 
 template <size_t Size, typename T>
-Axes<T, Size> inline axesConstant(T v) {
+Axes<T, Size> FORCE_INLINE axesConstant(T v) {
     Axes<T, Size> a;
     a.fill(v);
     return a;
 }
 
 template <typename M, typename T, size_t Size>
-inline Axes<M, Size> cast(Axes<T, Size> const &b) {
+FORCE_INLINE Axes<M, Size> cast(Axes<T, Size> const &b) {
     Axes<M, Size> a;
     for (size_t i = 0; i < Size; ++i) {
         a[i] = static_cast<M>(b[i]);
@@ -287,7 +300,7 @@ inline Axes<M, Size> cast(Axes<T, Size> const &b) {
 }
 
 template <typename T, size_t Size>
-inline Axes<T, Size> axesAbs(Axes<T, Size> a) {
+FORCE_INLINE Axes<T, Size> axesAbs(Axes<T, Size> a) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] = abs(a[i]);
     }
@@ -295,7 +308,7 @@ inline Axes<T, Size> axesAbs(Axes<T, Size> a) {
 }
 
 template <typename T, size_t Size>
-inline T normSqr(Axes<T, Size> const &a) {
+FORCE_INLINE T normSqr(Axes<T, Size> const &a) {
     T n{};
     for (size_t i = 0; i < Size; ++i) {
         n += a[i] * a[i];
@@ -304,12 +317,12 @@ inline T normSqr(Axes<T, Size> const &a) {
 }
 
 template <typename T, size_t Size>
-inline T norm(Axes<T, Size> const &a) {
+FORCE_INLINE T norm(Axes<T, Size> const &a) {
     return std::sqrt(normSqr(a));
 }
 
 template <typename T, size_t Size, typename F>
-inline T accumulate(Axes<T, Size> const &a, F binaryFunc, T init = T{}) {
+FORCE_INLINE T accumulate(Axes<T, Size> const &a, F binaryFunc, T init) {
     for (size_t i = 0; i < Size; ++i) {
         init = binaryFunc(a[i], init);
     }
@@ -317,7 +330,7 @@ inline T accumulate(Axes<T, Size> const &a, F binaryFunc, T init = T{}) {
 }
 
 template <typename T, size_t Size, typename F>
-inline Axes<T, Size> &applyInplace(Axes<T, Size> &a, F unaryFunc) {
+FORCE_INLINE Axes<T, Size> &applyInplace(Axes<T, Size> &a, F unaryFunc) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] = unaryFunc(a[i]);
     }
@@ -325,12 +338,13 @@ inline Axes<T, Size> &applyInplace(Axes<T, Size> &a, F unaryFunc) {
 }
 
 template <typename T, size_t Size, typename F>
-inline Axes<T, Size> apply(Axes<T, Size> a, F unaryFunc) {
+FORCE_INLINE Axes<T, Size> apply(Axes<T, Size> a, F unaryFunc) {
     return applyInplace(a, unaryFunc);
 }
 
 template <typename TFrom, typename TTo, size_t Size, typename F>
-inline void tansformOnlyFinite(Axes<TFrom, Size> const &src, Axes<TTo, Size> *dest, F unaryFunc) {
+FORCE_INLINE void tansformOnlyFinite(Axes<TFrom, Size> const &src, Axes<TTo, Size> *dest,
+                                     F unaryFunc) {
     for (size_t i = 0; i < Size; ++i) {
         if (std::isfinite(src[i])) {
             (*dest)[i] = unaryFunc(src[i]);
@@ -339,14 +353,14 @@ inline void tansformOnlyFinite(Axes<TFrom, Size> const &src, Axes<TTo, Size> *de
 }
 
 template <typename T, size_t Size>
-inline void copyOnlyFinite(Axes<T, Size> const &src, Axes<T, Size> *dest) {
+FORCE_INLINE void copyOnlyFinite(Axes<T, Size> const &src, Axes<T, Size> *dest) {
     tansformOnlyFinite(src, dest, [](T t) { return t; });
 }
 }
 
 namespace std {
 template <typename T, size_t Size>
-inline std::ostream &operator<<(std::ostream &os, StepperControl::Axes<T, Size> const &obj) {
+FORCE_INLINE std::ostream &operator<<(std::ostream &os, StepperControl::Axes<T, Size> const &obj) {
     for (auto a : obj) {
         os << a << " ";
     }

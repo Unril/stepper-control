@@ -21,9 +21,6 @@
     <ClCompile Include="Main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="StepperControlTests.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="TrajectoryGeneratorTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
@@ -34,6 +31,12 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="GCodeInterpreterTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SegmentsExecutorTests.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SegmentsGeneratorTests.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
