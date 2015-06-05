@@ -3,13 +3,11 @@
 #include "Axes.h"
 
 namespace StepperControl {
-
 template <size_t AxesSize>
 struct Segment {
     using Ai = Axes<int32_t, AxesSize>;
 
-    // Linear segment.
-    /* Parabolic segment.
+    /* Linear segment.
        It is set by start and end points p0-p1.
     x  ^
        |
@@ -23,7 +21,7 @@ struct Segment {
     Segment(int32_t dt, Ai const &dx) : dt(dt) {
         scAssert(dt > 0);
         // dx <= dt/2
-        scAssert(all(le(axesAbs(dx) * 2, axesConstant<AxesSize>(dt))));
+        scAssert(all(le(axAbs(dx) * 2, axConst<Ai>(dt))));
 
         denominator = 2 * dt;
         velocity = 2 * dx;
@@ -45,8 +43,8 @@ struct Segment {
     Segment(int32_t twiceDt, Ai const &dx1, Ai const &dx2) : dt(twiceDt) {
         scAssert(twiceDt > 0);
         // dx1 <= dt1/2 && dx2 <= dt2/2
-        scAssert(all(le(axesAbs(dx1) * 4, axesConstant<AxesSize>(twiceDt))));
-        scAssert(all(le(axesAbs(dx2) * 4, axesConstant<AxesSize>(twiceDt))));
+        scAssert(all(le(axAbs(dx1) * 4, axConst<Ai>(twiceDt))));
+        scAssert(all(le(axAbs(dx2) * 4, axConst<Ai>(twiceDt))));
 
         denominator = twiceDt * twiceDt;
         velocity = 2 * dx1 * twiceDt;
@@ -94,42 +92,57 @@ class SegmentsGenerator {
         scAssert(path_.size() == blendDurations_.size());
 
         segments_.clear();
-        Ai zero;
-        zero.fill(0);
+
         for (size_t i = 0; i < path_.size(); i++) {
-            auto p = path_[i];
-            int32_t blendDuration = lround(blendDurations_[i]);
-            if (blendDuration > 0) {
-                if (i == 0) {
-                    // beginning
-                    int32_t durationX2 = lround(2.f * durations_[i]);
-                    auto p2 = blendDuration * (path_[i + 1] - path_[i]) / durationX2;
-                    segments_.emplace_back(blendDuration, zero, p2);
-                } else if (i == path_.size() - 1) {
-                    // end
-                    auto pPrev = path_[i - 1];
-                    auto pNext = p;
+            auto firstPoint = (i == 0);
+            auto lastPoint = (i == (path_.size() - 1));
 
-                    auto v1 = cast<float>(p - pPrev) / durations_[i - 1];
+            auto q = path_[i];
+            auto tb = blendDurations_[i];
 
-                    segments_.emplace_back(blendDuration, cast<int32_t>(0.5f * blendDuration * v1),
-                                           zero);
+            if (lround(tb) > 0) {
+                if (firstPoint) {
+                    auto qNext = path_[i + 1];
+                    auto Dt = durations_[i];
+                    auto vNext = axCast<float>(qNext - q) / Dt;
+
+                    segments_.emplace_back(lround(tb), axZero<Ai>(), axLRound(0.5f * tb * vNext));
+                } else if (lastPoint) {
+                    auto qPrev = path_[i - 1];
+                    auto DtPrev = durations_[i - 1];
+                    auto v = axCast<float>(q - qPrev) / DtPrev;
+
+                    segments_.emplace_back(lround(tb), axLRound(0.5f * tb * v), axZero<Ai>());
                 } else {
-                    // middle
                     auto pPrev = path_[i - 1];
                     auto pNext = path_[i + 1];
 
-                    auto v1 = cast<float>(p - pPrev) / (durations_[i - 1]);
-                    auto v2 = cast<float>(pNext - p) / (durations_[i]);
-                    segments_.emplace_back(blendDuration, cast<int32_t>(0.5f * blendDuration * v1),
-                                           cast<int32_t>(0.5f * blendDuration * v2));
+                    auto Dt = durations_[i];
+                    auto DtPrev = durations_[i - 1];
+                    auto v = axCast<float>(q - pPrev) / DtPrev;
+                    auto vNext = axCast<float>(pNext - q) / Dt;
+
+                    segments_.emplace_back(lround(tb), axLRound(0.5f * tb * v),
+                                           axLRound(0.5f * tb * vNext));
                 }
             }
-            if (i != path_.size() - 1) {
-                auto const &pNext = path_[i + 1];
-                auto duration = durations_[i];
-                if (duration - blendDurations_[i] / 2 - blendDurations_[i + 1] > 0) {
-                    segments_.emplace_back(duration, pNext - p);
+
+            if (!lastPoint) {
+                auto tbNext = blendDurations_[i + 1];
+                auto qNext = path_[i + 1];
+                auto Dt = durations_[i];
+                auto Dq = qNext - q;
+                auto v = axCast<float>(Dq) / Dt;
+
+                auto Dqb = axLRound(0.5f * tb * v);
+                auto DqbNext = axLRound(0.5f * tbNext * v);
+
+                auto tbPart = (tb + tbNext) * 0.5f;
+                auto tl = Dt - tbPart;
+                auto Dql = Dq - (Dqb + DqbNext);
+
+                if (lround(tl) > 0) {
+                    segments_.emplace_back(lround(tl), Dql);
                 }
             }
         }
@@ -196,6 +209,7 @@ class SegmentsExecutor {
     }
 
   private:
+    // Integrate i-th axis.
     template <size_t i>
     FORCE_INLINE void tickI() {
         // Integrate fist half of interval
@@ -236,6 +250,7 @@ class SegmentsExecutor {
         tickI<i + 1>();
     }
 
+    // All axes were integreted.
     template <>
     FORCE_INLINE void tickI<AxesSize>() {
         // Update time.

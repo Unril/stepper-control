@@ -9,6 +9,8 @@ using namespace std;
 namespace {
 template <size_t AxesSize>
 struct MotorMock {
+    MotorMock() : current{axConst<AxesSize>(0), axConst<AxesSize>(0)} {}
+
     using Ai = Axes<int32_t, AxesSize>;
 
     struct Step {
@@ -27,19 +29,17 @@ struct MotorMock {
         Ai x, step;
     };
 
-    template<int i, int step>
+    template <int i, int step>
     void write() {
         current.x[i] += step;
         current.step[i] = step;
     }
 
-    void update() {
-        data.emplace_back(current);
-    }
-    
+    void update() { data.emplace_back(current); }
+
     void setPosition(Ai const &position) { current.x = position; }
 
-    Step current{axesConstant<AxesSize>(0), axesConstant<AxesSize>(0)};
+    Step current;
     vector<Step> data;
 };
 
@@ -78,7 +78,7 @@ TEST_F(SegmentsExecutor1_Should, execute_one_linear_segment) {
     process();
 
     Steps expected{
-       // {{0}, {0}}, // 0
+        // {{0}, {0}}, // 0
         {{1}, {1}},
         {{1}, {0}},
         {{2}, {1}},
@@ -99,7 +99,7 @@ TEST_F(SegmentsExecutor1_Should, execute_one_linear_segment_from_negative_positi
     process();
 
     Steps expected{
-       // {{-5}, {0}}, // 0
+        // {{-5}, {0}}, // 0
         {{-4}, {1}},
         {{-4}, {0}},
         {{-3}, {1}},
@@ -120,7 +120,7 @@ TEST_F(SegmentsExecutor1_Should, execute_one_linear_segment_with_negative_slope)
     process();
 
     Steps expected{
-      //  {{5}, {0}}, // 0
+        //  {{5}, {0}}, // 0
         {{4}, {-1}},
         {{4}, {0}},
         {{3}, {-1}},
@@ -140,7 +140,7 @@ TEST_F(SegmentsExecutor1_Should, execute_one_short_linear_segment) {
     process();
 
     Steps expected{
-       // /**/ {{0}, {0}},
+        // /**/ {{0}, {0}},
         /**/ {{1}, {1}},
         /**/ {{1}, {0}},
     };
@@ -152,7 +152,7 @@ TEST_F(SegmentsExecutor1_Should, execute_one_horizontal_linear_segment) {
     process();
 
     Steps expected{
-      //  /**/ {{0}, {0}}, // 0
+        //  /**/ {{0}, {0}}, // 0
         /**/ {{0}, {0}},
         /**/ {{0}, {0}},
         /**/ {{0}, {0}},
@@ -191,7 +191,7 @@ TEST_F(SegmentsExecutor1_Should, execute_one_rising_parabolic_segment) {
     process();
 
     Steps expected{
-       // {{0}, {0}}, // 0
+        // {{0}, {0}}, // 0
         {{0}, {0}},
         {{1}, {1}},
         {{1}, {0}},
@@ -252,7 +252,7 @@ TEST_F(SegmentsExecutor1_Should, execute_one_rising_parabolic_segment_with_negat
     process();
 
     Steps expected{
-       // {{0}, {0}}, // 0
+        // {{0}, {0}}, // 0
         {{0}, {0}},
         {{-1}, {-1}},
         {{-1}, {0}},
@@ -283,7 +283,7 @@ TEST_F(SegmentsExecutor1_Should, execute_one_falling_parabolic_segment_with_nega
     process();
 
     Steps expected{
-       // {{-5}, {0}}, // 0
+        // {{-5}, {0}}, // 0
         {{-5}, {0}},
         {{-5}, {0}},
         {{-5}, {0}},
@@ -313,7 +313,7 @@ TEST_F(SegmentsExecutor1_Should, execute_one_short_parabolic_segment_) {
     process();
 
     Steps expected{
-     //   /**/ {{0}, {0}}, // 0
+        //   /**/ {{0}, {0}}, // 0
         /**/ {{0}, {0}},
         /**/ {{1}, {1}},
         /**/ {{1}, {0}},
@@ -327,7 +327,7 @@ TEST_F(SegmentsExecutor1_Should, approximate_parabolic_curve_with_zero_curvature
     process();
 
     Steps expected{
-       // {{0}, {0}}, // 0
+        // {{0}, {0}}, // 0
         {{0}, {0}},
         {{1}, {1}},
         {{1}, {0}},
@@ -347,7 +347,7 @@ TEST_F(SegmentsExecutor1_Should, execute_two_linear_segments) {
     segments.push_back(Sg(6, {-3}));
     process();
     Steps expected{
-       // {{0}, {0}}, // 0
+        // {{0}, {0}}, // 0
         {{1}, {1}},
         {{1}, {0}},
         {{2}, {1}},
@@ -368,7 +368,7 @@ TEST_F(SegmentsExecutor1_Should, execute_parabolic_segment_with_gradient_change)
     segments.push_back(Sg(8, {2}, {-2}));
     process();
     Steps expected{
-       // {{0}, {0}}, // 0
+        // {{0}, {0}}, // 0
         {{0}, {0}},
         {{1}, {1}},
         {{1}, {0}},
@@ -387,7 +387,7 @@ TEST_F(SegmentsExecutor1_Should, execute_two_linear_segments_with_parabolic_blen
     segments.push_back(Sg(8, {-4}));
     process();
     Steps expected{
-       // {{0}, {0}}, // 0
+        // {{0}, {0}}, // 0
         {{1}, {1}},
         {{1}, {0}},
         {{2}, {1}},
@@ -424,7 +424,7 @@ TEST_F(SegmentsExecutor2_Should, execute_one_linear_segment) {
     process();
 
     Steps expected{
-       // {{0, 5}, {0, 0}}, // 0
+        // {{0, 5}, {0, 0}}, // 0
         {{1, 4}, {1, -1}},
         {{1, 4}, {0, 0}},
         {{2, 3}, {1, -1}},

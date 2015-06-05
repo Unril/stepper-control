@@ -81,7 +81,28 @@ TEST_F(SegmentsGenerator_Should, generate_two_blend_segments_at_the_middle) {
 
     update();
 
-    ASSERT_THAT(segments,
-                ElementsAre(Sg(20, {10, 0}), Sg(40, {10, 0}, {-10, 0}), Sg(20, {-10, 0})));
+    vector<Sg> expected {
+        Sg(20, {10, 0}), Sg(40, {10, 0}, {-10, 0}), Sg(20, {-10, 0})
+    };
+    ASSERT_THAT(segments, ContainerEq(expected));
+}
+
+TEST_F(SegmentsGenerator_Should, generate_two_linear_segments_with_blends) {
+    path.push_back({0, 0});
+    path.push_back({15, -15});
+    path.push_back({5, -5});
+    gen.setDurations({30.f, 40.f});
+    gen.setBlendDurations({20.f, 20.f, 40.f});
+
+    update();
+
+    vector<Sg> expected {
+        Sg(20, {0, 0}, {5, -5}), 
+        Sg(10, {5, -5}),
+        Sg(20, {5, -5}, {-3, 3}), 
+        Sg(10, {-2, 2}),
+        Sg(40, {-5, 5}, {0, 0}), 
+    };
+    ASSERT_THAT(segments, ContainerEq(expected));
 }
 }

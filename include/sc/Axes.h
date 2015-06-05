@@ -284,14 +284,28 @@ FORCE_INLINE bool any(Axes<bool, Size> const &a) {
 FORCE_INLINE float inf() { return std::numeric_limits<float>::infinity(); }
 
 template <size_t Size, typename T>
-Axes<T, Size> FORCE_INLINE axesConstant(T v) {
+Axes<T, Size> FORCE_INLINE axConst(T v) {
     Axes<T, Size> a;
     a.fill(v);
     return a;
 }
 
+template <typename Ax>
+Ax FORCE_INLINE axConst(decltype(Ax {}[0]) v) {
+    Ax a;
+    a.fill(v);
+    return a;
+}
+
+template <typename Ax>
+Ax FORCE_INLINE axZero() {
+    Ax a;
+    a.fill(0);
+    return a;
+}
+
 template <typename M, typename T, size_t Size>
-FORCE_INLINE Axes<M, Size> cast(Axes<T, Size> const &b) {
+FORCE_INLINE Axes<M, Size> axCast(Axes<T, Size> const &b) {
     Axes<M, Size> a;
     for (size_t i = 0; i < Size; ++i) {
         a[i] = static_cast<M>(b[i]);
@@ -300,11 +314,28 @@ FORCE_INLINE Axes<M, Size> cast(Axes<T, Size> const &b) {
 }
 
 template <typename T, size_t Size>
-FORCE_INLINE Axes<T, Size> axesAbs(Axes<T, Size> a) {
+FORCE_INLINE Axes<T, Size> axAbs(Axes<T, Size> a) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] = abs(a[i]);
     }
     return a;
+}
+
+template <typename T, size_t Size>
+FORCE_INLINE Axes<T, Size> axRound(Axes<T, Size> a) {
+    for (size_t i = 0; i < Size; ++i) {
+        a[i] = round(a[i]);
+    }
+    return a;
+}
+
+template <typename T, size_t Size>
+FORCE_INLINE Axes<int32_t, Size> axLRound(Axes<T, Size> a) {
+    Axes<int32_t, Size> res;
+    for (size_t i = 0; i < Size; ++i) {
+        res[i] = static_cast<int32_t>(lround(a[i]));
+    }
+    return res;
 }
 
 template <typename T, size_t Size>

@@ -28,7 +28,7 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
         ensureStartPosition();
         auto newPosition = positionInUnits * stepsPerUnitLength_;
         if (mode_ == Relative) {
-            newPosition += cast<float>(currentPosition_);
+            newPosition += axCast<float>(currentPosition_);
         }
         auto previousPosition = currentPosition_;
         tansformOnlyFinite(newPosition, &currentPosition_, &lroundf);

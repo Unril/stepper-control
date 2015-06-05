@@ -73,7 +73,7 @@ class TrajectoryGenerator {
                 durations_[i] =
                     std::max(durations_[i], (std::abs(path_[i + 1][j] - path_[i][j]) / maxVelocity_[j]));
             }
-            velocities_[i] = cast<float>(path_[i + 1] - path_[i]) / durations_[i];
+            velocities_[i] = axCast<float>(path_[i + 1] - path_[i]) / durations_[i];
         }
     }
 
@@ -89,9 +89,9 @@ class TrajectoryGenerator {
             for (size_t i = 0; i < path_.size(); i++) {
                 // calculate blend duration and acceleration
                 AxesFloat previousVelocity =
-                    (i == 0) ? axesConstant<AxesSize>(0.f) : velocities_[i - 1];
+                    (i == 0) ? axConst<AxesSize>(0.f) : velocities_[i - 1];
                 AxesFloat nextVelocity =
-                    (i == path_.size() - 1) ? axesConstant<AxesSize>(0.f) : velocities_[i];
+                    (i == path_.size() - 1) ? axConst<AxesSize>(0.f) : velocities_[i];
                 blendDurations_[i] = 0.0f;
                 for (size_t j = 0; j < path_[i].size(); j++) {
                     blendDurations_[i] = std::max(

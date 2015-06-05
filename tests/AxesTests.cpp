@@ -128,7 +128,7 @@ TEST_F(Axes_Should, divide_on_value) {
 
 TEST_F(Axes_Should, cast_elements_to_another_type) {
     auto a = Af2{10.2f, 20.6f};
-    auto b = cast<int>(a);
+    auto b = axCast<int>(a);
 
     EXPECT_THAT(a, ElementsAre(10.2f, 20.6f));
     EXPECT_THAT(b, ElementsAre(10, 20));
