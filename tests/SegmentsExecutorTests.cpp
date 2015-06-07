@@ -51,10 +51,10 @@ struct TickerMock {
 
 template <size_t AxesSize>
 struct SegmentsExecutorTestBase : Test {
-    using Executor = SegmentsExecutor<AxesSize, MotorMock, TickerMock>;
     using Sg = Segment<AxesSize>;
     using Mm = MotorMock<AxesSize>;
     using Steps = vector<typename Mm::Step>;
+    using Executor = SegmentsExecutor<AxesSize, Mm, TickerMock>;
     Mm motor;
     TickerMock ticker;
     typename Executor::Segments segments;

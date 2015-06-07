@@ -23,7 +23,7 @@ struct TrajectoryGenerator_Should : Test {
 
     void update() {
         gen_.setPath(path_);
-        gen_.updateTrajectory();
+        gen_.update();
     }
 };
 

@@ -3,6 +3,14 @@
 #include "Axes.h"
 
 namespace StepperControl {
+
+inline int32_t lTruncTowardZero(float v) { return static_cast<int32_t>(v); }
+
+inline int32_t lTruncTowardInf(float v) {
+    return static_cast<int32_t>(v < 0.0f ? floor(v) : ceil(v));
+}
+
+// Contains data for Bresenham's algorithm.
 template <size_t AxesSize>
 struct Segment {
     using Ai = Axes<int32_t, AxesSize>;
@@ -71,6 +79,8 @@ struct Segment {
     Ai velocity, halfAcceleration, error;
 };
 
+// It creates sequence of linear and parabolic segments from given path points,
+// durations between points and durations of blend segments.
 template <size_t AxesSize>
 class SegmentsGenerator {
   public:
@@ -78,12 +88,24 @@ class SegmentsGenerator {
     using Ai = Axes<int32_t, AxesSize>;
     using Segments = std::vector<Segment<AxesSize>>;
 
+    template <typename T>
+    void setAll(T const &generator) {
+        setPath(generator.path());
+        setDurations(generator.durations());
+        setBlendDurations(generator.blendDurations());
+    }
+
     void setPath(std::vector<Ai> const &path) { path_ = path; }
 
-    void setDurations(std::vector<float> const &durations) { durations_ = durations; }
+    void setDurations(std::vector<float> const &durations) {
+        durations_.resize(durations.size());
+        transform(durations.begin(), durations.end(), durations_.begin(), &lTruncTowardInf);
+    }
 
     void setBlendDurations(std::vector<float> const &blendDurations) {
-        blendDurations_ = blendDurations;
+        blendDurations_.resize(blendDurations.size());
+        transform(blendDurations.begin(), blendDurations.end(), blendDurations_.begin(),
+                  &lTruncTowardInf);
     }
 
     void update() {
@@ -94,77 +116,109 @@ class SegmentsGenerator {
         segments_.clear();
 
         for (size_t i = 0; i < path_.size(); i++) {
-            auto firstPoint = (i == 0);
-            auto lastPoint = (i == (path_.size() - 1));
-
-            auto q = path_[i];
-            auto tb = blendDurations_[i];
-
-            if (lround(tb) > 0) {
-                if (firstPoint) {
-                    auto qNext = path_[i + 1];
-                    auto Dt = durations_[i];
-                    auto vNext = axCast<float>(qNext - q) / Dt;
-
-                    segments_.emplace_back(lround(tb), axZero<Ai>(), axLRound(0.5f * tb * vNext));
-                } else if (lastPoint) {
-                    auto qPrev = path_[i - 1];
-                    auto DtPrev = durations_[i - 1];
-                    auto v = axCast<float>(q - qPrev) / DtPrev;
-
-                    segments_.emplace_back(lround(tb), axLRound(0.5f * tb * v), axZero<Ai>());
-                } else {
-                    auto pPrev = path_[i - 1];
-                    auto pNext = path_[i + 1];
-
-                    auto Dt = durations_[i];
-                    auto DtPrev = durations_[i - 1];
-                    auto v = axCast<float>(q - pPrev) / DtPrev;
-                    auto vNext = axCast<float>(pNext - q) / Dt;
-
-                    segments_.emplace_back(lround(tb), axLRound(0.5f * tb * v),
-                                           axLRound(0.5f * tb * vNext));
-                }
-            }
-
-            if (!lastPoint) {
-                auto tbNext = blendDurations_[i + 1];
-                auto qNext = path_[i + 1];
-                auto Dt = durations_[i];
-                auto Dq = qNext - q;
-                auto v = axCast<float>(Dq) / Dt;
-
-                auto Dqb = axLRound(0.5f * tb * v);
-                auto DqbNext = axLRound(0.5f * tbNext * v);
-
-                auto tbPart = (tb + tbNext) * 0.5f;
-                auto tl = Dt - tbPart;
-                auto Dql = Dq - (Dqb + DqbNext);
-
-                if (lround(tl) > 0) {
-                    segments_.emplace_back(lround(tl), Dql);
-                }
-            }
+            addSegmentsForPoint(i);
         }
     }
 
     Segments const &segments() const { return segments_; }
 
   private:
+    void addSegmentsForPoint(size_t i) {
+        auto firstPoint = i == 0;
+        auto lastPoint = (i == path_.size() - 1);
+
+        auto x = path_[i];
+        auto tBlend = blendDurations_[i];
+
+        // Add only nonzero blend segment.
+        if (tBlend > 0) {
+            auto v = axZero<Af>();     // First tangent slope.
+            auto vNext = axZero<Af>(); // Second tangent slope.
+
+            // Treat first and last points differently.
+            if (firstPoint) {
+                // First tangent of first blend has zero slope.
+                auto const &xNext = path_[i + 1];
+                auto Dt = static_cast<float>(durations_[i]);
+                vNext = axCast<float>(xNext - x) / Dt;
+            } else if (lastPoint) {
+                // Second tangent of last blend has zero slope.
+                auto const &xPrev = path_[i - 1];
+                auto DtPrev = static_cast<float>(durations_[i - 1]);
+                v = axCast<float>(x - xPrev) / DtPrev;
+            } else {
+                auto const &xPrev = path_[i - 1];
+                auto const &xNext = path_[i + 1];
+                auto Dt = static_cast<float>(durations_[i]);
+                auto DtPrev = static_cast<float>(durations_[i - 1]);
+                v = axCast<float>(x - xPrev) / DtPrev;
+                vNext = axCast<float>(xNext - x) / Dt;
+            }
+
+            scAssert(all(le(axAbs(v), axConst<Af>(0.5f))));
+            scAssert(all(le(axAbs(vNext), axConst<Af>(0.5f))));
+
+            auto Dx = axLRound(0.5f * tBlend * v);
+            auto DxNext = axLRound(0.5f * tBlend * vNext);
+
+            // Check rounded slope <= 0.5 and correct blend duration if neccesary.
+            auto tBlendCorrected = tBlend;
+            for (size_t j = 0; j < AxesSize; ++j) {
+                auto DxAbsX4 = abs(Dx[j] * 4);
+                if (tBlendCorrected < DxAbsX4) {
+                    tBlendCorrected = DxAbsX4;
+                }
+                auto DxNextAbsX4 = abs(DxNext[j] * 4);
+                if (tBlendCorrected < DxNextAbsX4) {
+                    tBlendCorrected = DxNextAbsX4;
+                }
+            }
+
+            segments_.emplace_back(tBlendCorrected, Dx, DxNext);
+        }
+
+        // Where is no linear segments after last point.
+        if (lastPoint)
+            return;
+
+        auto tBlendNext = blendDurations_[i + 1];
+        auto const &xNext = path_[i + 1];
+        auto Dt = static_cast<float>(durations_[i]);
+        auto Dx = xNext - x;
+
+        // Segment slope.
+        auto v = axCast<float>(Dx) / Dt;
+
+        // Calculate blend x difference the same way as above to be consistent in rounding.
+        auto DxBlend = axLRound(0.5f * tBlend * v);
+        auto DxBlendNext = axLRound(0.5f * tBlendNext * v);
+
+        auto tBlendPart = (tBlend + tBlendNext) * 0.5f;
+        auto tLine = Dt - tBlendPart;
+        auto DxLine = Dx - (DxBlend + DxBlendNext);
+        auto rtLine = lTruncTowardInf(tLine);
+
+        if (rtLine > 0) {
+            segments_.emplace_back(rtLine, DxLine);
+        }
+    }
+
     std::vector<Ai> path_;
-    std::vector<float> durations_;
-    std::vector<float> blendDurations_;
+    std::vector<int32_t> durations_;
+    std::vector<int32_t> blendDurations_;
     Segments segments_;
 };
 
-template <size_t AxesSize, template <size_t> class TMotor, typename TTicker>
+// Starts timer and generates steps using provided linear or parabolic segments.
+// Uses modified Bresenham's line drawing algorithm.
+template <size_t AxesSize, typename TMotor, typename TTicker>
 class SegmentsExecutor {
   public:
     using Sg = Segment<AxesSize>;
     using Segments = std::vector<Sg>;
     using Ai = Axes<int32_t, AxesSize>;
 
-    SegmentsExecutor(TMotor<AxesSize> *motor, TTicker *ticker)
+    SegmentsExecutor(TMotor *motor, TTicker *ticker)
         : running_(false), motor_(motor), ticker_(ticker), ticksPerSecond_(1) {
         scAssert(motor_ && ticker_);
     }
@@ -261,7 +315,7 @@ class SegmentsExecutor {
     }
 
     bool running_;
-    TMotor<AxesSize> *motor_;
+    TMotor *motor_;
     TTicker *ticker_;
     Segments segments_;
     typename Segments::iterator sg_;

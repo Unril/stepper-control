@@ -87,6 +87,7 @@
     <ClCompile Include="AxesTests.cpp" />
     <ClCompile Include="GCodeInterpreterTests.cpp" />
     <ClCompile Include="GCodeParserTests.cpp" />
+    <ClCompile Include="IntegrationTests.cpp" />
     <ClCompile Include="SegmentsGeneratorTests.cpp" />
     <ClCompile Include="stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Create</PrecompiledHeader>

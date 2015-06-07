@@ -14,9 +14,7 @@ using Ai = Axes<int32_t, AxesSize>;
 struct GCodeInterpreter_Should : Test {
     using Interp = GCodeInterpreter<AxesSize>;
     Interp interp_;
-    std::vector<Ai> path() {
-        return interp_.path();
-    }
+    std::vector<Ai> path() { return interp_.path(); }
 };
 
 TEST_F(GCodeInterpreter_Should, add_one_linear_move_waypoint) {
@@ -57,7 +55,7 @@ TEST_F(GCodeInterpreter_Should, override_only_valid_steps_per_unit_lenght) {
 
 TEST_F(GCodeInterpreter_Should, override_only_valid_max_accelerations) {
     interp_.m101MaxAccelerationOverride(Af{inf(), 400.f});
-    EXPECT_THAT(interp_.maxAcceleration(), ElementsAre(1.f, 400.f));
+    EXPECT_THAT(interp_.maxAcceleration(), ElementsAre(0.1f, 400.f));
 
     interp_.m101MaxAccelerationOverride(Af{100.f, inf()});
     EXPECT_THAT(interp_.maxAcceleration(), ElementsAre(100.f, 400.f));
@@ -73,20 +71,20 @@ TEST_F(GCodeInterpreter_Should, override_max_accelerations) {
 }
 
 TEST_F(GCodeInterpreter_Should, override_max_velocities) {
-    interp_.setTicksPerSecond(10);
+    interp_.setTicksPerSecond(10000);
     interp_.m102StepsPerUnitLengthOverride(Af{1.f, 2.f});
 
     interp_.m100MaxVelocityOverride(Af{100.f, 400.f});
 
-    EXPECT_THAT(interp_.maxVelocity(), ElementsAre(10.f, 80.f));
+    EXPECT_THAT(interp_.maxVelocity(), ElementsAre(0.01f, 0.08f));
 }
 
 TEST_F(GCodeInterpreter_Should, override_only_valid_max_velocities) {
-    interp_.m100MaxVelocityOverride(Af{inf(), 400.f});
-    EXPECT_THAT(interp_.maxVelocity(), ElementsAre(1.f, 400.f));
+    interp_.m100MaxVelocityOverride(Af{inf(), 0.3f});
+    EXPECT_THAT(interp_.maxVelocity(), ElementsAre(0.5f, 0.3f));
 
-    interp_.m100MaxVelocityOverride(Af{100.f, inf()});
-    EXPECT_THAT(interp_.maxVelocity(), ElementsAre(100.f, 400.f));
+    interp_.m100MaxVelocityOverride(Af{0.1f, inf()});
+    EXPECT_THAT(interp_.maxVelocity(), ElementsAre(0.1f, 0.3f));
 }
 
 TEST_F(GCodeInterpreter_Should, add_relative_positions) {
@@ -98,4 +96,12 @@ TEST_F(GCodeInterpreter_Should, add_relative_positions) {
     EXPECT_THAT(path(), ElementsAre(Ai{0, 0}, Ai{10, 100}, Ai{30, 100}, Ai{30, 300}, Ai{40, 400}));
 }
 
+TEST_F(GCodeInterpreter_Should, trim_max_velocity_to_one_half) {
+    interp_.setTicksPerSecond(1000);
+    interp_.m102StepsPerUnitLengthOverride(Af{1.f, 2.f});
+
+    interp_.m100MaxVelocityOverride(Af{100.f, 400.f});
+
+    EXPECT_THAT(interp_.maxVelocity(), ElementsAre(0.1f, 0.5f));
+}
 }

@@ -152,7 +152,7 @@ TEST_F(Axes_Should, apply_function) {
 TEST_F(Axes_Should, copy_finite_axes) {
     auto a = Af2{3.f, inf()};
     auto b = Af2{10.f, 10.f};
-    copyOnlyFinite(a, &b);
+    copyOnlyFinite(a, b);
 
     EXPECT_THAT(a, ElementsAre(3.f, inf()));
     EXPECT_THAT(b, ElementsAre(3.f, 10.f));

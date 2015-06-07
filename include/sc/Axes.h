@@ -31,11 +31,6 @@ namespace StepperControl {
                                    ("): " #_Expression " "));                                      \
     } while (false)
 
-#define scExecute(_Expression)                                                                     \
-    do {                                                                                           \
-        _Expression;                                                                               \
-    } while (false)
-
 #endif /* NDEBUG */
 
 // Axes
@@ -290,8 +285,8 @@ Axes<T, Size> FORCE_INLINE axConst(T v) {
     return a;
 }
 
-template <typename Ax>
-Ax FORCE_INLINE axConst(decltype(Ax {}[0]) v) {
+template <typename Ax, typename T>
+Ax FORCE_INLINE axConst(T v) {
     Ax a;
     a.fill(v);
     return a;
@@ -317,6 +312,23 @@ template <typename T, size_t Size>
 FORCE_INLINE Axes<T, Size> axAbs(Axes<T, Size> a) {
     for (size_t i = 0; i < Size; ++i) {
         a[i] = abs(a[i]);
+    }
+    return a;
+}
+
+template <typename T, size_t Size>
+FORCE_INLINE T axMax(Axes<T, Size> const &a) {
+    auto m = a[0];
+    for (size_t i = 1; i < Size; ++i) {
+        m = std::max(m, a[i]);
+    }
+    return m;
+}
+
+template <typename T, size_t Size>
+FORCE_INLINE T axMax(Axes<T, Size> a, Axes<T, Size> const &b) {
+    for (size_t i = 0; i < Size; ++i) {
+        a[i] = std::max(a[i], b[i]);
     }
     return a;
 }
@@ -369,22 +381,26 @@ FORCE_INLINE Axes<T, Size> &applyInplace(Axes<T, Size> &a, F unaryFunc) {
 }
 
 template <typename T, size_t Size, typename F>
-FORCE_INLINE Axes<T, Size> apply(Axes<T, Size> a, F unaryFunc) {
-    return applyInplace(a, unaryFunc);
+FORCE_INLINE auto apply(Axes<T, Size> a, F unaryFunc) -> Axes<decltype(unaryFunc(T{})), Size> {
+    Axes<decltype(unaryFunc(T{})), Size> res;
+    for (size_t i = 0; i < Size; ++i) {
+        res[i] = unaryFunc(a[i]);
+    }
+    return res;
 }
 
 template <typename TFrom, typename TTo, size_t Size, typename F>
-FORCE_INLINE void tansformOnlyFinite(Axes<TFrom, Size> const &src, Axes<TTo, Size> *dest,
+FORCE_INLINE void tansformOnlyFinite(Axes<TFrom, Size> const &src, Axes<TTo, Size> &dest,
                                      F unaryFunc) {
     for (size_t i = 0; i < Size; ++i) {
         if (std::isfinite(src[i])) {
-            (*dest)[i] = unaryFunc(src[i]);
+            dest[i] = unaryFunc(src[i]);
         }
     }
 }
 
 template <typename T, size_t Size>
-FORCE_INLINE void copyOnlyFinite(Axes<T, Size> const &src, Axes<T, Size> *dest) {
+FORCE_INLINE void copyOnlyFinite(Axes<T, Size> const &src, Axes<T, Size> &dest) {
     tansformOnlyFinite(src, dest, [](T t) { return t; });
 }
 }

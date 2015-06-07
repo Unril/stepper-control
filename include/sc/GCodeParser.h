@@ -10,17 +10,17 @@ enum DistanceMode { Absolute, Relative };
 template <size_t AxesSize>
 class GCodeParserCallbacks {
   public:
-    using AxesFloat = Axes<float, AxesSize>;
+    using Af = Axes<float, AxesSize>;
 
     virtual ~GCodeParserCallbacks() {}
 
     virtual void feedrateOverride(float feed) {}
 
-    virtual void linearMove(AxesFloat const &pos, float feed) {}
+    virtual void linearMove(Af const &pos, float feed) {}
 
-    virtual void g0RapidMove(AxesFloat const &pos) {}
+    virtual void g0RapidMove(Af const &pos) {}
 
-    virtual void g1LinearMove(AxesFloat const &pos, float feed) {}
+    virtual void g1LinearMove(Af const &pos, float feed) {}
 
     virtual void g4Wait(float sec) {}
 
@@ -28,11 +28,15 @@ class GCodeParserCallbacks {
 
     virtual void g90g91DistanceMode(DistanceMode) {}
 
-    virtual void m100MaxVelocityOverride(AxesFloat const &vel) {}
+    virtual void m100MaxVelocityOverride(Af const &vel) {}
 
-    virtual void m101MaxAccelerationOverride(AxesFloat const &acc) {}
+    virtual void m101MaxAccelerationOverride(Af const &acc) {}
 
-    virtual void m102StepsPerUnitLengthOverride(AxesFloat const &spl) {}
+    virtual void m102StepsPerUnitLengthOverride(Af const &spl) {}
+
+    virtual void error(size_t pos, const char* str) {
+        throw std::logic_error("Error at " + std::to_string(pos) + " in """ + str + """");
+    }
 };
 
 /*
@@ -69,16 +73,16 @@ line = ( linearMove | feedrateOverride | gCommand | mCommand | "\n" )
 */
 template <size_t AxesSize>
 class GCodeParser {
-    using AxesFloat = Axes<float, AxesSize>;
+    using Af = Axes<float, AxesSize>;
 
   public:
     explicit GCodeParser(GCodeParserCallbacks<AxesSize> *cb)
         : errorPos_(std::numeric_limits<size_t>::max()), pos_(nullptr), str_(nullptr), cb_(cb) {
-        assert(cb);
+        scAssert(cb);
     }
 
     bool parseLine(const char *str) {
-        assert(str);
+        scAssert(str);
         str_ = str;
         pos_ = str;
         errorPos_ = std::numeric_limits<size_t>::max();
@@ -95,7 +99,7 @@ class GCodeParser {
         return "ABCUVWXYZ";
     }
 
-    static void updateAxisValue(AxesFloat *axes, char name, float value) {
+    static void updateAxisValue(Af *axes, char name, float value) {
         name = toupper(name);
         auto axisName = axesNames();
         for (auto axis = axes->begin(); axis != axes->end(); ++axis, ++axisName) {
@@ -143,7 +147,7 @@ class GCodeParser {
         return true;
     }
 
-    bool axesFloat(AxesFloat *axes) {
+    bool axesFloat(Af *axes) {
         char name = 0;
         float value = inf();
         if (!axisFloat(&name, &value)) {
@@ -167,7 +171,7 @@ class GCodeParser {
         return true;
     }
 
-    bool axesWithFeedrate(AxesFloat *steps, float *feed) {
+    bool axesWithFeedrate(Af *steps, float *feed) {
         if (!axesFloat(steps)) {
             return false;
         }
@@ -188,7 +192,7 @@ class GCodeParser {
     }
 
     bool linearMove() {
-        AxesFloat steps;
+        Af steps;
         steps.fill(inf());
         float feed = inf();
         if (!axesWithFeedrate(&steps, &feed)) {
@@ -202,7 +206,7 @@ class GCodeParser {
     }
 
     bool g0RapidMove() {
-        AxesFloat steps;
+        Af steps;
         steps.fill(inf());
         axesFloat(&steps);
         if (!expectNewLine()) {
@@ -213,7 +217,7 @@ class GCodeParser {
     }
 
     bool g1LinearMove() {
-        AxesFloat steps;
+        Af steps;
         steps.fill(inf());
         float feed = inf();
         axesWithFeedrate(&steps, &feed);
@@ -296,7 +300,7 @@ class GCodeParser {
     }
 
     bool m100MaxVelocityOverride() {
-        AxesFloat vel;
+        Af vel;
         vel.fill(inf());
         axesFloat(&vel);
         if (!expectNewLine()) {
@@ -307,7 +311,7 @@ class GCodeParser {
     }
 
     bool m101MaxAccelerationOverride() {
-        AxesFloat acc;
+        Af acc;
         acc.fill(inf());
         axesFloat(&acc);
         if (!expectNewLine()) {
@@ -318,7 +322,7 @@ class GCodeParser {
     }
 
     bool m102StepsPerUnitLengthOverride() {
-        AxesFloat spu;
+        Af spu;
         spu.fill(inf());
         axesFloat(&spu);
         if (!expectNewLine()) {
@@ -377,13 +381,21 @@ class GCodeParser {
     }
 
     inline bool isGCommand() const { return toupper(sym()) == 'G'; }
+
     inline bool isMCommand() const { return toupper(sym()) == 'M'; }
+
     inline bool isFeedrate() const { return toupper(sym()) == 'F'; }
+
     inline bool isPause() const { return toupper(sym()) == 'P'; }
+
     inline bool isAxis() const { return sym() && strchr(axesNames(), toupper(sym())); }
+
     inline bool isDigit() const { return isdigit(sym()) != 0; }
+
     inline bool isSign() const { return sym() == '-' || sym() == '+'; }
+
     inline bool isNewLine() const { return sym() == '\n'; }
+
     inline bool isSpace() const { return sym() == ' ' || sym() == '\t' || sym() == '\r'; }
 
     inline void skipSpaces() {
@@ -402,7 +414,10 @@ class GCodeParser {
 
     inline char sym() const { return *pos_; }
 
-    inline void error() { errorPos_ = pos_ - str_; }
+    inline void error() {
+        errorPos_ = pos_ - str_;
+        cb_->error(errorPos_, str_);
+    }
 
     size_t errorPos_;
     const char *pos_;

@@ -20,19 +20,24 @@ f_i = sqrt(min(dT_i-1, dT_i)/tb_i)
 template <size_t AxesSize>
 class TrajectoryGenerator {
   public:
-    using AxesFloat = Axes<float, AxesSize>;
-    using AxesInt = Axes<int32_t, AxesSize>;
+    using Af = Axes<float, AxesSize>;
+    using Ai = Axes<int32_t, AxesSize>;
 
     TrajectoryGenerator() {
-        maxVelocity_.fill(0);
-        maxAcceleration_.fill(0);
+        maxVelocity_.fill(0.5f);
+        maxAcceleration_.fill(0.1f);
     }
 
-    // steps
-    void setPath(std::vector<AxesInt> const &path) {
-        if (path.size() <= 1) {
-            return;
-        }
+    template <typename T>
+    void setAll(T const &interpreter) {
+        setPath(interpreter.path());
+        setMaxVelocity(interpreter.maxVelocity());
+        setMaxAcceleration(interpreter.maxAcceleration());
+    }
+
+    // In steps.
+    void setPath(std::vector<Ai> const &path) {
+        scAssert(!path.empty());
         path_ = path;
         velocities_.resize(path_.size() - 1);
         durations_.resize(path_.size() - 1);
@@ -40,38 +45,45 @@ class TrajectoryGenerator {
         blendDurations_.resize(path_.size());
     }
 
-    // steps per tick
-    void setMaxVelocity(AxesFloat const &axesFloat) { maxVelocity_ = axesFloat; }
+    // Should be less or equal that 0.4 to propper segment generation.
+    // In steps per tick.
+    void setMaxVelocity(Af const &maxVel) {
+        scAssert(all(gt(maxVel, axZero<Af>())));
+        maxVelocity_ = maxVel;
+    }
 
-    // steps per tick^2
-    void setMaxAcceleration(AxesFloat const &axesFloat) { maxAcceleration_ = axesFloat; }
+    // In steps per tick^2.
+    void setMaxAcceleration(Af const &maxAccel) {
+        scAssert(all(gt(maxAccel, axZero<Af>())));
+        maxAcceleration_ = maxAccel;
+    }
 
-    void updateTrajectory() {
+    void update() {
         calculateTimeBetweenWaypointsAndInitialVelocitiesOfLinearSegments();
         applySlowDownFactor();
     }
 
-    std::vector<AxesInt> const &path() const { return path_; }
+    std::vector<Ai> const &path() const { return path_; }
 
-    std::vector<AxesFloat> const &velocities() const { return velocities_; }
+    std::vector<Af> const &velocities() const { return velocities_; }
 
-    std::vector<AxesFloat> const &accelerations() const { return accelerations_; }
+    std::vector<Af> const &accelerations() const { return accelerations_; }
 
     std::vector<float> const &durations() const { return durations_; }
 
     std::vector<float> const &blendDurations() const { return blendDurations_; }
 
-    AxesFloat const &maxVelocity() const { return maxVelocity_; }
+    Af const &maxVelocity() const { return maxVelocity_; }
 
-    AxesFloat const &maxAcceleration() const { return maxAcceleration_; }
+    Af const &maxAcceleration() const { return maxAcceleration_; }
 
   private:
     void calculateTimeBetweenWaypointsAndInitialVelocitiesOfLinearSegments() {
         for (size_t i = 0; i < path_.size() - 1; i++) {
             durations_[i] = 0.0f;
             for (size_t j = 0; j < path_[i].size(); j++) {
-                durations_[i] =
-                    std::max(durations_[i], (std::abs(path_[i + 1][j] - path_[i][j]) / maxVelocity_[j]));
+                durations_[i] = std::max(
+                    durations_[i], (std::abs(path_[i + 1][j] - path_[i][j]) / maxVelocity_[j]));
             }
             velocities_[i] = axCast<float>(path_[i + 1] - path_[i]) / durations_[i];
         }
@@ -88,10 +100,8 @@ class TrajectoryGenerator {
 
             for (size_t i = 0; i < path_.size(); i++) {
                 // calculate blend duration and acceleration
-                AxesFloat previousVelocity =
-                    (i == 0) ? axConst<AxesSize>(0.f) : velocities_[i - 1];
-                AxesFloat nextVelocity =
-                    (i == path_.size() - 1) ? axConst<AxesSize>(0.f) : velocities_[i];
+                Af previousVelocity = (i == 0) ? axConst<AxesSize>(0.f) : velocities_[i - 1];
+                Af nextVelocity = (i == path_.size() - 1) ? axConst<AxesSize>(0.f) : velocities_[i];
                 blendDurations_[i] = 0.0f;
                 for (size_t j = 0; j < path_[i].size(); j++) {
                     blendDurations_[i] = std::max(
@@ -124,12 +134,12 @@ class TrajectoryGenerator {
         }
     }
 
-    std::vector<AxesInt> path_;
-    std::vector<AxesFloat> velocities_;
-    std::vector<AxesFloat> accelerations_;
+    std::vector<Ai> path_;
+    std::vector<Af> velocities_;
+    std::vector<Af> accelerations_;
     std::vector<float> durations_;
     std::vector<float> blendDurations_;
-    AxesFloat maxVelocity_;
-    AxesFloat maxAcceleration_;
+    Af maxVelocity_;
+    Af maxAcceleration_;
 };
 }
