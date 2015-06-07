@@ -28,7 +28,7 @@ struct SegmentsGenerator_Should : Test {
 };
 
 TEST(lTruncTowardZero_Should, trunc_toward_zero) {
-    EXPECT_THAT(lTruncTowardZero(2.f), Eq(2));
+    EXPECT_THAT(lTruncTowardZero(2), Eq(2));
     EXPECT_THAT(lTruncTowardZero(1.7f), Eq(1));
     EXPECT_THAT(lTruncTowardZero(1.5f), Eq(1));
     EXPECT_THAT(lTruncTowardZero(1.2f), Eq(1));
@@ -36,11 +36,11 @@ TEST(lTruncTowardZero_Should, trunc_toward_zero) {
     EXPECT_THAT(lTruncTowardZero(-1.2f), Eq(-1));
     EXPECT_THAT(lTruncTowardZero(-1.5f), Eq(-1));
     EXPECT_THAT(lTruncTowardZero(-1.7f), Eq(-1));
-    EXPECT_THAT(lTruncTowardZero(-2.f), Eq(-2));
+    EXPECT_THAT(lTruncTowardZero(-2), Eq(-2));
 }
 
 TEST(lTruncTowardInf_Should, trunc_away_from_zero) {
-    EXPECT_THAT(lTruncTowardInf(2.f), Eq(2));
+    EXPECT_THAT(lTruncTowardInf(2), Eq(2));
     EXPECT_THAT(lTruncTowardInf(1.7f), Eq(2));
     EXPECT_THAT(lTruncTowardInf(1.5f), Eq(2));
     EXPECT_THAT(lTruncTowardInf(1.2f), Eq(2));
@@ -48,14 +48,14 @@ TEST(lTruncTowardInf_Should, trunc_away_from_zero) {
     EXPECT_THAT(lTruncTowardInf(-1.2f), Eq(-2));
     EXPECT_THAT(lTruncTowardInf(-1.5f), Eq(-2));
     EXPECT_THAT(lTruncTowardInf(-1.7f), Eq(-2));
-    EXPECT_THAT(lTruncTowardInf(-2.f), Eq(-2));
+    EXPECT_THAT(lTruncTowardInf(-2), Eq(-2));
 }
 
 TEST_F(SegmentsGenerator_Should, generate_one_linear_segment) {
     path.push_back({0, 50});
     path.push_back({40, 0});
-    gen.setDurations({100.f});
-    gen.setBlendDurations({0.f, 0.f});
+    gen.setDurations({100});
+    gen.setBlendDurations({0, 0});
 
     update();
 
@@ -66,8 +66,8 @@ TEST_F(SegmentsGenerator_Should, generate_two_linear_segments) {
     path.push_back({0, 10});
     path.push_back({40, 50});
     path.push_back({100, 110});
-    gen.setDurations({100.f, 120.f});
-    gen.setBlendDurations({0.f, 0.f, 0.f});
+    gen.setDurations({100, 120});
+    gen.setBlendDurations({0, 0, 0});
 
     update();
 
@@ -77,8 +77,8 @@ TEST_F(SegmentsGenerator_Should, generate_two_linear_segments) {
 TEST_F(SegmentsGenerator_Should, generate_one_blend_segment_at_beginning) {
     path.push_back({0, 10});
     path.push_back({10, 0});
-    gen.setDurations({20.f});
-    gen.setBlendDurations({40.f, 0.f});
+    gen.setDurations({20});
+    gen.setBlendDurations({40, 0});
 
     update();
 
@@ -88,8 +88,8 @@ TEST_F(SegmentsGenerator_Should, generate_one_blend_segment_at_beginning) {
 TEST_F(SegmentsGenerator_Should, generate_one_blend_segment_at_end) {
     path.push_back({10, 0});
     path.push_back({0, 10});
-    gen.setDurations({20.f});
-    gen.setBlendDurations({0.f, 40.f});
+    gen.setDurations({20});
+    gen.setBlendDurations({0, 40});
 
     update();
 
@@ -100,8 +100,8 @@ TEST_F(SegmentsGenerator_Should, generate_two_blend_segments_at_the_middle) {
     path.push_back({0, 0});
     path.push_back({20, 0});
     path.push_back({0, 0});
-    gen.setDurations({40.f, 40.f});
-    gen.setBlendDurations({0.f, 40.f, 0.f});
+    gen.setDurations({40, 40});
+    gen.setBlendDurations({0, 40, 0});
 
     update();
 
@@ -117,8 +117,8 @@ TEST_F(SegmentsGenerator_Should, generate_two_linear_segments_with_blends) {
     path.push_back({0, 0});
     path.push_back({15, -15});
     path.push_back({5, -5});
-    gen.setDurations({30.f, 40.f});
-    gen.setBlendDurations({20.f, 20.f, 40.f});
+    gen.setDurations({30, 40});
+    gen.setBlendDurations({20, 20, 40});
 
     update();
 
@@ -136,8 +136,8 @@ TEST_F(SegmentsGenerator_Should, generate_blends_with_one_half_ratio) {
     path.push_back({0, 0});
     path.push_back({10, -10});
     path.push_back({0, 0});
-    gen.setDurations({40.f, 40.f});
-    gen.setBlendDurations({20.f, 20.f, 20.f});
+    gen.setDurations({40, 40});
+    gen.setBlendDurations({20, 20, 20});
 
     update();
 
@@ -155,8 +155,8 @@ TEST_F(SegmentsGenerator_Should, generate_blends_without_linear_segments) {
     path.push_back({0, 0});
     path.push_back({10, -10});
     path.push_back({0, 0});
-    gen.setDurations({40.f, 40.f});
-    gen.setBlendDurations({60.f, 20.f, 60.f});
+    gen.setDurations({40, 40});
+    gen.setBlendDurations({60, 20, 60});
 
     update();
 
@@ -172,8 +172,8 @@ TEST_F(SegmentsGenerator_Should, generate_blends_with_one_third_ratio) {
     path.push_back({0, 0});
     path.push_back({10, -10});
     path.push_back({0, 0});
-    gen.setDurations({30.f, 30.f});
-    gen.setBlendDurations({20.f, 20.f, 20.f});
+    gen.setDurations({30, 30});
+    gen.setBlendDurations({20, 20, 20});
 
     update();
 
@@ -191,8 +191,8 @@ TEST_F(SegmentsGenerator_Should, generate_short_segments) {
     path.push_back({0, 0});
     path.push_back({10, -10});
     path.push_back({0, 0});
-    gen.setDurations({20.f, 20.f});
-    gen.setBlendDurations({10.f, 10.f, 10.f});
+    gen.setDurations({20, 20});
+    gen.setBlendDurations({10, 10, 10});
 
     update();
 

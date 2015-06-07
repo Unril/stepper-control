@@ -97,15 +97,12 @@ class SegmentsGenerator {
 
     void setPath(std::vector<Ai> const &path) { path_ = path; }
 
-    void setDurations(std::vector<float> const &durations) {
-        durations_.resize(durations.size());
-        transform(durations.begin(), durations.end(), durations_.begin(), &lTruncTowardInf);
+    void setDurations(std::vector<int32_t> const &durations) {
+        durations_ = durations;
     }
 
-    void setBlendDurations(std::vector<float> const &blendDurations) {
-        blendDurations_.resize(blendDurations.size());
-        transform(blendDurations.begin(), blendDurations.end(), blendDurations_.begin(),
-                  &lTruncTowardInf);
+    void setBlendDurations(std::vector<int32_t> const &blendDurations) {
+        blendDurations_ = blendDurations;
     }
 
     void update() {

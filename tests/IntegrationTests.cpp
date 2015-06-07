@@ -4,6 +4,7 @@
 #include "../include/sc/GCodeInterpreter.h"
 #include "../include/sc/TrajectoryGenerator.h"
 #include "../include/sc/StepperControl.h"
+
 #include <fstream>
 
 using namespace StepperControl;
@@ -70,7 +71,7 @@ TEST_F(Integration_Should, create_an_execute_trajectory_from_random_path_points)
 
     for (int i = 0; i < 20; ++i) {
         stringstream ss;
-        ss << "A" << (rand() % 100 - 50) << "B" << (rand() % 60 - 30)<< endl;
+        ss << "A" << (rand() % 100 - 50) << "B" << (rand() % 60 - 30) << endl;
         parser.parseLine(ss.str().c_str());
     }
     parser.parseLine("A0B0\n");
@@ -80,9 +81,11 @@ TEST_F(Integration_Should, create_an_execute_trajectory_from_random_path_points)
     EXPECT_THAT(mm.data.size(), Gt(0));
     EXPECT_THAT(mm.current, Eq(Ai{0, 0}));
 
-    //ofstream fs("data.csv");
-    //for (auto &a : mm.data) {
-    //    fs << a[0] << ", " << a[1] << endl;
-    //}
+#if 0
+    ofstream fs("data.csv");
+    for (auto &a : mm.data) {
+        fs << a[0] << ", " << a[1] << endl;
+    }
+#endif
 }
 }
