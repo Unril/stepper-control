@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "../include/sc/StepperControl.h"
+#include "../include/sc/SegmentsExecutor.h"
 
 using namespace StepperControl;
 using namespace testing;

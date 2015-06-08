@@ -7,18 +7,26 @@ using namespace testing;
 
 namespace {
 const size_t AxesSize = 3;
+using Af = Axes<float, AxesSize>;
 
 struct GCodeParserCallbacksMock : GCodeParserCallbacks<AxesSize> {
     MOCK_METHOD1(feedrateOverride, void(float));
-    MOCK_METHOD2(linearMove, void(Axes<float, AxesSize> const &, float));
-    MOCK_METHOD1(g0RapidMove, void(Axes<float, AxesSize> const &));
-    MOCK_METHOD2(g1LinearMove, void(Axes<float, AxesSize> const &, float));
+    MOCK_METHOD2(linearMove, void(Af const &, float));
+    MOCK_METHOD1(g0RapidMove, void(Af const &));
+    MOCK_METHOD2(g1LinearMove, void(Af const &, float));
     MOCK_METHOD1(g4Wait, void(float));
     MOCK_METHOD0(g28RunHomingCycle, void());
     MOCK_METHOD1(g90g91DistanceMode, void(DistanceMode));
-    MOCK_METHOD1(m100MaxVelocityOverride, void(Axes<float, AxesSize> const &));
-    MOCK_METHOD1(m101MaxAccelerationOverride, void(Axes<float, AxesSize> const &));
-    MOCK_METHOD1(m102StepsPerUnitLengthOverride, void(Axes<float, AxesSize> const &));
+    MOCK_METHOD1(m100MaxVelocityOverride, void(Af const &));
+    MOCK_METHOD1(m101MaxAccelerationOverride, void(Af const &));
+    MOCK_METHOD1(m102StepsPerUnitLengthOverride, void(Af const &));
+    MOCK_METHOD1(m103HomingVelocityOverride, void(Af const &));
+
+    void error(size_t pos, const char *line, const char *reason) override {
+        std::stringstream ss;
+        ss << "Error " << reason << " at " << pos << " in " << line;
+        throw std::logic_error(ss.str());
+    }
 };
 
 struct GCodeParser_Should : Test {
@@ -149,6 +157,17 @@ TEST_F(GCodeParser_Should, parse_m102StepsPerUnitLengthOverride) {
 
     EXPECT_CALL(cb_, m102StepsPerUnitLengthOverride(ElementsAre(inf(), inf(), inf())));
     parse("M102\n");
+}
+
+TEST_F(GCodeParser_Should, parse_m103HomingVelocityOverride) {
+    EXPECT_CALL(cb_, m103HomingVelocityOverride(ElementsAre(3.14f, 0.123f, 0.1f)));
+    parse("M103 A3.14 B0.123 C.1\n");
+
+    EXPECT_CALL(cb_, m103HomingVelocityOverride(ElementsAre(0.123f, inf(), inf())));
+    parse("M103 A0.123\n");
+
+    EXPECT_CALL(cb_, m103HomingVelocityOverride(ElementsAre(inf(), inf(), inf())));
+    parse("M103\n");
 }
 
 TEST_F(GCodeParser_Should, not_parse_without_line_break) {

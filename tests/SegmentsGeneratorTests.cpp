@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "../include/sc/StepperControl.h"
+#include "../include/sc/TrajectoryToSegmentsConverter.h"
 
 using namespace StepperControl;
 using namespace testing;
@@ -13,8 +13,8 @@ const size_t AxesSize = 2;
 using Af = Axes<float, AxesSize>;
 using Ai = Axes<int32_t, AxesSize>;
 
-struct SegmentsGenerator_Should : Test {
-    using SegGen = SegmentsGenerator<AxesSize>;
+struct TrajectoryToSegmentsConverter_Should : Test {
+    using SegGen = TrajectoryToSegmentsConverter<AxesSize>;
     using Sg = Segment<AxesSize>;
     SegGen::Segments segments;
     vector<Ai> path;
@@ -51,7 +51,7 @@ TEST(lTruncTowardInf_Should, trunc_away_from_zero) {
     EXPECT_THAT(lTruncTowardInf(-2), Eq(-2));
 }
 
-TEST_F(SegmentsGenerator_Should, generate_one_linear_segment) {
+TEST_F(TrajectoryToSegmentsConverter_Should, generate_one_linear_segment) {
     path.push_back({0, 50});
     path.push_back({40, 0});
     gen.setDurations({100});
@@ -62,7 +62,7 @@ TEST_F(SegmentsGenerator_Should, generate_one_linear_segment) {
     ASSERT_THAT(segments, ElementsAre(Sg(100, {40, -50})));
 }
 
-TEST_F(SegmentsGenerator_Should, generate_two_linear_segments) {
+TEST_F(TrajectoryToSegmentsConverter_Should, generate_two_linear_segments) {
     path.push_back({0, 10});
     path.push_back({40, 50});
     path.push_back({100, 110});
@@ -74,7 +74,7 @@ TEST_F(SegmentsGenerator_Should, generate_two_linear_segments) {
     ASSERT_THAT(segments, ElementsAre(Sg(100, {40, 40}), Sg(120, {60, 60})));
 }
 
-TEST_F(SegmentsGenerator_Should, generate_one_blend_segment_at_beginning) {
+TEST_F(TrajectoryToSegmentsConverter_Should, generate_one_blend_segment_at_beginning) {
     path.push_back({0, 10});
     path.push_back({10, 0});
     gen.setDurations({20});
@@ -85,7 +85,7 @@ TEST_F(SegmentsGenerator_Should, generate_one_blend_segment_at_beginning) {
     ASSERT_THAT(segments, ElementsAre(Sg(40, {0, 0}, {10, -10})));
 }
 
-TEST_F(SegmentsGenerator_Should, generate_one_blend_segment_at_end) {
+TEST_F(TrajectoryToSegmentsConverter_Should, generate_one_blend_segment_at_end) {
     path.push_back({10, 0});
     path.push_back({0, 10});
     gen.setDurations({20});
@@ -96,7 +96,7 @@ TEST_F(SegmentsGenerator_Should, generate_one_blend_segment_at_end) {
     ASSERT_THAT(segments, ElementsAre(Sg(40, {-10, 10}, {0, 0})));
 }
 
-TEST_F(SegmentsGenerator_Should, generate_two_blend_segments_at_the_middle) {
+TEST_F(TrajectoryToSegmentsConverter_Should, generate_two_blend_segments_at_the_middle) {
     path.push_back({0, 0});
     path.push_back({20, 0});
     path.push_back({0, 0});
@@ -113,7 +113,7 @@ TEST_F(SegmentsGenerator_Should, generate_two_blend_segments_at_the_middle) {
     ASSERT_THAT(segments, ContainerEq(expected));
 }
 
-TEST_F(SegmentsGenerator_Should, generate_two_linear_segments_with_blends) {
+TEST_F(TrajectoryToSegmentsConverter_Should, generate_two_linear_segments_with_blends) {
     path.push_back({0, 0});
     path.push_back({15, -15});
     path.push_back({5, -5});
@@ -132,7 +132,7 @@ TEST_F(SegmentsGenerator_Should, generate_two_linear_segments_with_blends) {
     ASSERT_THAT(segments, ContainerEq(expected));
 }
 
-TEST_F(SegmentsGenerator_Should, generate_blends_with_one_half_ratio) {
+TEST_F(TrajectoryToSegmentsConverter_Should, generate_blends_with_one_half_ratio) {
     path.push_back({0, 0});
     path.push_back({10, -10});
     path.push_back({0, 0});
@@ -151,7 +151,7 @@ TEST_F(SegmentsGenerator_Should, generate_blends_with_one_half_ratio) {
     ASSERT_THAT(segments, ContainerEq(expected));
 }
 
-TEST_F(SegmentsGenerator_Should, generate_blends_without_linear_segments) {
+TEST_F(TrajectoryToSegmentsConverter_Should, generate_blends_without_linear_segments) {
     path.push_back({0, 0});
     path.push_back({10, -10});
     path.push_back({0, 0});
@@ -168,7 +168,7 @@ TEST_F(SegmentsGenerator_Should, generate_blends_without_linear_segments) {
     ASSERT_THAT(segments, ContainerEq(expected));
 }
 
-TEST_F(SegmentsGenerator_Should, generate_blends_with_one_third_ratio) {
+TEST_F(TrajectoryToSegmentsConverter_Should, generate_blends_with_one_third_ratio) {
     path.push_back({0, 0});
     path.push_back({10, -10});
     path.push_back({0, 0});
@@ -187,7 +187,7 @@ TEST_F(SegmentsGenerator_Should, generate_blends_with_one_third_ratio) {
     ASSERT_THAT(segments, ContainerEq(expected));
 }
 
-TEST_F(SegmentsGenerator_Should, generate_short_segments) {
+TEST_F(TrajectoryToSegmentsConverter_Should, generate_short_segments) {
     path.push_back({0, 0});
     path.push_back({10, -10});
     path.push_back({0, 0});

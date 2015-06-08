@@ -34,9 +34,9 @@ class GCodeParserCallbacks {
 
     virtual void m102StepsPerUnitLengthOverride(Af const &spl) {}
 
-    virtual void error(size_t pos, const char* str) {
-        throw std::logic_error("Error at " + std::to_string(pos) + " in """ + str + """");
-    }
+    virtual void m103HomingVelocityOverride(Af const &vel) {}
+
+    virtual void error(size_t pos, const char *line, const char *reason) {}
 };
 
 /*
@@ -62,12 +62,14 @@ g91RelativeDistanceMode = "\n"
 m100MaxVelocityOverride = [axesFloat] "\n"
 m101MaxAccelerationOverride = [axesFloat] "\n"
 m102StepsPerUnitLengthOverride = [axesFloat] "\n"
+m103HomingVelocityOverride = [axesFloat] "\n"
 
 linearMove = axesWithFeedrate "\n"
 feedrateOverride = feedrate "\n"
 gCommand = "G" integer ( g0RapidMove | g1LinearMove | g4Wait | g28RunHomingCycle |
-                         g90AbsoluteDistanceMode | g91RelativeDistanceMode )
-mCommand = "M" integer ( m100MaxVelocityOverride | m101MaxAccelerationOverride)
+    g90AbsoluteDistanceMode | g91RelativeDistanceMode )
+mCommand = "M" integer ( m100MaxVelocityOverride | m101MaxAccelerationOverride |
+    m102StepsPerUnitLengthOverride | m103HomingVelocityOverride)
 
 line = ( linearMove | feedrateOverride | gCommand | mCommand | "\n" )
 */
@@ -87,8 +89,7 @@ class GCodeParser {
         pos_ = str;
         errorPos_ = std::numeric_limits<size_t>::max();
         skipSpaces();
-        line();
-        return errorPos_ == std::numeric_limits<size_t>::max();
+        return line() && errorPos_ == std::numeric_limits<size_t>::max();
     }
 
     size_t errorPosition() const { return errorPos_; }
@@ -141,7 +142,7 @@ class GCodeParser {
             return false;
         }
         if (!floating(value)) {
-            error();
+            error("expect floating value");
             return false;
         }
         return true;
@@ -149,7 +150,7 @@ class GCodeParser {
 
     bool axesFloat(Af *axes) {
         char name = 0;
-        float value = inf();
+        auto value = inf();
         if (!axisFloat(&name, &value)) {
             return false;
         }
@@ -165,7 +166,7 @@ class GCodeParser {
         }
         nextsym();
         if (!floating(feed)) {
-            error();
+            error("expect floating feed");
             return false;
         }
         return true;
@@ -180,7 +181,7 @@ class GCodeParser {
     }
 
     bool feedrateOverride() {
-        float feed = inf();
+        auto feed = inf();
         if (!feedrate(&feed)) {
             return false;
         }
@@ -192,9 +193,8 @@ class GCodeParser {
     }
 
     bool linearMove() {
-        Af steps;
-        steps.fill(inf());
-        float feed = inf();
+        auto steps = axInf<Af>();
+        auto feed = inf();
         if (!axesWithFeedrate(&steps, &feed)) {
             return false;
         }
@@ -206,8 +206,7 @@ class GCodeParser {
     }
 
     bool g0RapidMove() {
-        Af steps;
-        steps.fill(inf());
+        auto steps = axInf<Af>();
         axesFloat(&steps);
         if (!expectNewLine()) {
             return false;
@@ -217,9 +216,8 @@ class GCodeParser {
     }
 
     bool g1LinearMove() {
-        Af steps;
-        steps.fill(inf());
-        float feed = inf();
+        auto steps = axInf<Af>();
+        auto feed = inf();
         axesWithFeedrate(&steps, &feed);
         if (!expectNewLine()) {
             return false;
@@ -230,13 +228,13 @@ class GCodeParser {
 
     bool g4Wait() {
         if (!isPause()) {
-            error();
+            error("expect P");
             return false;
         }
         nextsym();
         float sec = 0;
         if (!floating(&sec)) {
-            error();
+            error("expect floating seconds");
             return false;
         }
         if (!expectNewLine()) {
@@ -277,7 +275,7 @@ class GCodeParser {
         nextsym();
         int32_t command = 0;
         if (!integer(&command)) {
-            error();
+            error("expect integer command");
             return false;
         }
         switch (command) {
@@ -294,14 +292,13 @@ class GCodeParser {
         case 91:
             return g91RelativeDistanceMode();
         default:
-            error();
+            error("unknown G command");
             return false;
         }
     }
 
     bool m100MaxVelocityOverride() {
-        Af vel;
-        vel.fill(inf());
+        auto vel = axInf<Af>();
         axesFloat(&vel);
         if (!expectNewLine()) {
             return false;
@@ -311,8 +308,7 @@ class GCodeParser {
     }
 
     bool m101MaxAccelerationOverride() {
-        Af acc;
-        acc.fill(inf());
+        auto acc = axInf<Af>();
         axesFloat(&acc);
         if (!expectNewLine()) {
             return false;
@@ -322,13 +318,22 @@ class GCodeParser {
     }
 
     bool m102StepsPerUnitLengthOverride() {
-        Af spu;
-        spu.fill(inf());
+        auto spu = axInf<Af>();
         axesFloat(&spu);
         if (!expectNewLine()) {
             return false;
         }
         cb_->m102StepsPerUnitLengthOverride(spu);
+        return true;
+    }
+
+    bool m103HomingVelocityOverride() {
+        auto vel = axInf<Af>();
+        axesFloat(&vel);
+        if (!expectNewLine()) {
+            return false;
+        }
+        cb_->m103HomingVelocityOverride(vel);
         return true;
     }
 
@@ -339,7 +344,7 @@ class GCodeParser {
         nextsym();
         int32_t command = 0;
         if (!integer(&command)) {
-            error();
+            error("expect integer command");
             return false;
         }
         switch (command) {
@@ -349,15 +354,17 @@ class GCodeParser {
             return m101MaxAccelerationOverride();
         case 102:
             return m102StepsPerUnitLengthOverride();
+        case 103:
+            return m103HomingVelocityOverride();
         default:
-            error();
+            error("unknown M command");
             return false;
         }
     }
 
     bool expectNewLine() {
         if (!isNewLine()) {
-            error();
+            error("expect new line");
             return false;
         }
         nextsym();
@@ -406,7 +413,7 @@ class GCodeParser {
 
     inline void nextsym() {
         if (sym() == 0) {
-            error();
+            error("expect symbol");
         }
         ++pos_;
         skipSpaces();
@@ -414,9 +421,9 @@ class GCodeParser {
 
     inline char sym() const { return *pos_; }
 
-    inline void error() {
+    inline void error(const char *reason) {
         errorPos_ = pos_ - str_;
-        cb_->error(errorPos_, str_);
+        cb_->error(errorPos_, str_, reason);
     }
 
     size_t errorPos_;

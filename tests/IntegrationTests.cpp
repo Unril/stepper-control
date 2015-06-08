@@ -2,8 +2,9 @@
 
 #include "../include/sc/GCodeParser.h"
 #include "../include/sc/GCodeInterpreter.h"
-#include "../include/sc/TrajectoryGenerator.h"
-#include "../include/sc/StepperControl.h"
+#include "../include/sc/PathToTrajectoryConverter.h"
+#include "../include/sc/TrajectoryToSegmentsConverter.h"
+#include "../include/sc/SegmentsExecutor.h"
 
 #include <fstream>
 
@@ -45,8 +46,8 @@ struct Integration_Should : Test {
 
     GCodeInterpreter<AxesSize> interpreter;
     GCodeParser<AxesSize> parser;
-    TrajectoryGenerator<AxesSize> trajGen;
-    SegmentsGenerator<AxesSize> segGen;
+    PathToTrajectoryConverter<AxesSize> trajGen;
+    TrajectoryToSegmentsConverter<AxesSize> segGen;
     MotorMock mm;
     TickerMock tm;
     SegmentsExecutor<AxesSize, MotorMock, TickerMock> executor;

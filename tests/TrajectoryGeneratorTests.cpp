@@ -1,6 +1,6 @@
 #include "stdafx.h"
 
-#include "../include/sc/TrajectoryGenerator.h"
+#include "../include/sc/PathToTrajectoryConverter.h"
 
 using namespace StepperControl;
 using namespace testing;
@@ -11,12 +11,12 @@ const size_t AxesSize = 2;
 using Af = Axes<float, AxesSize>;
 using Ai = Axes<int32_t, AxesSize>;
 
-struct TrajectoryGenerator_Should : Test {
-    using TrajGen = TrajectoryGenerator<AxesSize>;
+struct PathToTrajectoryConverter_Should : Test {
+    using TrajGen = PathToTrajectoryConverter<AxesSize>;
     std::vector<Ai> path;
     TrajGen gen;
 
-    TrajectoryGenerator_Should() {
+    PathToTrajectoryConverter_Should() {
         gen.setMaxAcceleration({10, 10});
         gen.setMaxVelocity({20, 20});
     }
@@ -27,7 +27,7 @@ struct TrajectoryGenerator_Should : Test {
     }
 };
 
-TEST_F(TrajectoryGenerator_Should, get_trajectory_for_one_axis_and_two_points) {
+TEST_F(PathToTrajectoryConverter_Should, get_trajectory_for_one_axis_and_two_points) {
     path.push_back({0, 0});
     path.push_back({100, 0});
 
@@ -39,7 +39,7 @@ TEST_F(TrajectoryGenerator_Should, get_trajectory_for_one_axis_and_two_points) {
     EXPECT_THAT(gen.blendDurations(), ElementsAre(2, 2));
 }
 
-TEST_F(TrajectoryGenerator_Should, get_trajectory_for_two_axes_and_two_points) {
+TEST_F(PathToTrajectoryConverter_Should, get_trajectory_for_two_axes_and_two_points) {
     path.push_back({0, 0});
     path.push_back({100, 200});
 
@@ -51,7 +51,7 @@ TEST_F(TrajectoryGenerator_Should, get_trajectory_for_two_axes_and_two_points) {
     EXPECT_THAT(gen.blendDurations(), ElementsAre(2, 2));
 }
 
-TEST_F(TrajectoryGenerator_Should, apply_slowdown) {
+TEST_F(PathToTrajectoryConverter_Should, apply_slowdown) {
     path.push_back({0, 0});
     path.push_back({100, 200});
     gen.setMaxVelocity(Af{50, 50});
@@ -65,7 +65,7 @@ TEST_F(TrajectoryGenerator_Should, apply_slowdown) {
     EXPECT_THAT(gen.blendDurations(), ElementsAre(10, 10));
 }
 
-TEST_F(TrajectoryGenerator_Should, move_to_different_directions) {
+TEST_F(PathToTrajectoryConverter_Should, move_to_different_directions) {
     path.push_back({100, 0});
     path.push_back({0, 100});
 
@@ -77,7 +77,7 @@ TEST_F(TrajectoryGenerator_Should, move_to_different_directions) {
     EXPECT_THAT(gen.blendDurations(), ElementsAre(2, 2));
 }
 
-TEST_F(TrajectoryGenerator_Should, remove_points_with_all_axes_close_than_threshold) {
+TEST_F(PathToTrajectoryConverter_Should, remove_points_with_all_axes_close_than_threshold) {
     path.push_back({0, 0});
     path.push_back({100, -100});
     path.push_back({108, -104});
@@ -92,7 +92,7 @@ TEST_F(TrajectoryGenerator_Should, remove_points_with_all_axes_close_than_thresh
     EXPECT_THAT(gen.path(), ContainerEq(expected));
 }
 
-TEST_F(TrajectoryGenerator_Should, not_remove_points_with_not_all_axes_close_than_threshold) {
+TEST_F(PathToTrajectoryConverter_Should, not_remove_points_with_not_all_axes_close_than_threshold) {
     path.push_back({0, 0});
     path.push_back({100, 100});
     path.push_back({111, 100});
@@ -105,7 +105,7 @@ TEST_F(TrajectoryGenerator_Should, not_remove_points_with_not_all_axes_close_tha
     EXPECT_THAT(gen.path(), ContainerEq(path));
 }
 
-TEST_F(TrajectoryGenerator_Should, not_change_first_or_last_points) {
+TEST_F(PathToTrajectoryConverter_Should, not_change_first_or_last_points) {
     path.push_back({0, 0});
     path.push_back({1, -1});
     path.push_back({99, -99});

@@ -1,40 +1,12 @@
 #pragma once
 
+#include "Common.h"
+
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <stdexcept>
 
 namespace StepperControl {
-
-#ifdef NDEBUG
-
-#ifdef __GNUG__
-#define FORCE_INLINE __attribute__((always_inline))
-#elif defined(_MSC_VER)
-#define FORCE_INLINE __forceinline
-#else
-#define FORCE_INLINE inline
-#endif
-
-#define scAssert(_Expression) ((void)0)
-#define scExecute(_Expression) ((void)0)
-
-#else /* NDEBUG */
-
-#define FORCE_INLINE inline
-
-#define scAssert(_Expression)                                                                      \
-    do {                                                                                           \
-        if (!(_Expression))                                                                        \
-            throw std::logic_error((__FILE__ "(") + std::to_string(__LINE__) +                     \
-                                   ("): " #_Expression " "));                                      \
-    } while (false)
-
-#endif /* NDEBUG */
-
-// Axes
-
 template <typename T, size_t Size>
 using Axes = std::array<T, Size>;
 
@@ -233,12 +205,30 @@ FORCE_INLINE Axes<bool, Size> eq(Axes<T, Size> const &a, Axes<T, Size> const &b)
     return res;
 }
 
+template <typename T, size_t Size>
+FORCE_INLINE Axes<bool, Size> eq(Axes<T, Size> const &a, T b) {
+    Axes<bool, Size> res;
+    for (size_t i = 0; i < Size; ++i) {
+        res[i] = a[i] == b;
+    }
+    return res;
+}
+
 // not equal to
 template <typename T, size_t Size>
 FORCE_INLINE Axes<bool, Size> neq(Axes<T, Size> const &a, Axes<T, Size> const &b) {
     Axes<bool, Size> res;
     for (size_t i = 0; i < Size; ++i) {
         res[i] = a[i] != b[i];
+    }
+    return res;
+}
+
+template <typename T, size_t Size>
+FORCE_INLINE Axes<bool, Size> neq(Axes<T, Size> const &a, T b) {
+    Axes<bool, Size> res;
+    for (size_t i = 0; i < Size; ++i) {
+        res[i] = a[i] != b;
     }
     return res;
 }
@@ -276,8 +266,6 @@ FORCE_INLINE bool any(Axes<bool, Size> const &a) {
 
 // Other
 
-FORCE_INLINE float inf() { return std::numeric_limits<float>::infinity(); }
-
 template <size_t Size, typename T>
 Axes<T, Size> FORCE_INLINE axConst(T v) {
     Axes<T, Size> a;
@@ -288,15 +276,18 @@ Axes<T, Size> FORCE_INLINE axConst(T v) {
 template <typename Ax, typename T>
 Ax FORCE_INLINE axConst(T v) {
     Ax a;
-    a.fill(v);
+    a.fill(static_cast<typename Ax::value_type>(v));
     return a;
 }
 
 template <typename Ax>
 Ax FORCE_INLINE axZero() {
-    Ax a;
-    a.fill(0);
-    return a;
+    return axConst<Ax>(0);
+}
+
+template <typename Ax>
+Ax FORCE_INLINE axInf() {
+    return axConst<Ax>(inf());
 }
 
 template <typename M, typename T, size_t Size>
@@ -401,15 +392,22 @@ FORCE_INLINE void tansformOnlyFinite(Axes<TFrom, Size> const &src, Axes<TTo, Siz
 
 template <typename T, size_t Size>
 FORCE_INLINE void copyOnlyFinite(Axes<T, Size> const &src, Axes<T, Size> &dest) {
-    tansformOnlyFinite(src, dest, [](T t) { return t; });
+    for (size_t i = 0; i < Size; ++i) {
+        if (std::isfinite(src[i])) {
+            dest[i] = src[i];
+        }
+    }
 }
 }
 
 namespace std {
 template <typename T, size_t Size>
 FORCE_INLINE std::ostream &operator<<(std::ostream &os, StepperControl::Axes<T, Size> const &obj) {
-    for (auto a : obj) {
-        os << a << " ";
+    for (size_t i = 0; i < Size; ++i) {
+        os << obj[i];
+        if (i < Size - 1) {
+            os << ", ";
+        }
     }
     return os;
 }

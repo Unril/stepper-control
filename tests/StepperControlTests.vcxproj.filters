@@ -53,13 +53,25 @@
     <ClInclude Include="..\include\sc\GCodeParser.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\sc\StepperControl.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\include\sc\TrajectoryGenerator.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\sc\GCodeInterpreter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sc\Segment.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sc\TrajectoryToSegmentsConverter.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sc\SegmentsExecutor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sc\CommandsExecutor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sc\Common.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sc\PathToTrajectoryConverter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

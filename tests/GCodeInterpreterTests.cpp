@@ -14,7 +14,7 @@ using Ai = Axes<int32_t, AxesSize>;
 struct GCodeInterpreter_Should : Test {
     using Interp = GCodeInterpreter<AxesSize>;
     Interp interp_;
-    std::vector<Ai> path() { return interp_.path(); }
+    std::vector<Ai> path() { return interp_.commands().back().path(); }
 };
 
 TEST_F(GCodeInterpreter_Should, add_one_linear_move_waypoint) {

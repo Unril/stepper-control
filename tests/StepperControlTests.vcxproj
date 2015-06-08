@@ -100,10 +100,14 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\sc\Axes.h" />
+    <ClInclude Include="..\include\sc\CommandsExecutor.h" />
+    <ClInclude Include="..\include\sc\Common.h" />
     <ClInclude Include="..\include\sc\GCodeInterpreter.h" />
     <ClInclude Include="..\include\sc\GCodeParser.h" />
-    <ClInclude Include="..\include\sc\StepperControl.h" />
-    <ClInclude Include="..\include\sc\TrajectoryGenerator.h" />
+    <ClInclude Include="..\include\sc\Segment.h" />
+    <ClInclude Include="..\include\sc\SegmentsExecutor.h" />
+    <ClInclude Include="..\include\sc\PathToTrajectoryConverter.h" />
+    <ClInclude Include="..\include\sc\TrajectoryToSegmentsConverter.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
