@@ -74,5 +74,8 @@
     <ClInclude Include="..\include\sc\PathToTrajectoryConverter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\include\sc\Command.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

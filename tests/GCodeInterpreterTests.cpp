@@ -10,6 +10,7 @@ const size_t AxesSize = 2;
 
 using Af = Axes<float, AxesSize>;
 using Ai = Axes<int32_t, AxesSize>;
+using Cmd = Command<AxesSize>;
 
 struct GCodeInterpreter_Should : Test {
     using Interp = GCodeInterpreter<AxesSize>;
@@ -104,4 +105,67 @@ TEST_F(GCodeInterpreter_Should, trim_max_velocity_to_one_half) {
 
     EXPECT_THAT(interp_.maxVelocity(), ElementsAre(0.1f, 0.5f));
 }
+
+TEST_F(GCodeInterpreter_Should, home_and_move) {
+    interp_.setTicksPerSecond(10);
+    interp_.m103HomingVelocityOverride({1.f, 2.f});
+    interp_.m100MaxVelocityOverride(Af{2.f, 4.f});
+    interp_.m101MaxAccelerationOverride(Af{2.f, 2.f});
+    interp_.setCurrentPosition(Ai{10, 20});
+
+    interp_.g28RunHomingCycle();
+    interp_.linearMove({10.f, 10.f}, inf());
+    interp_.linearMove({20.f, 20.f}, inf());
+
+    auto cmds = interp_.commands();
+    ASSERT_THAT(cmds, SizeIs(2));
+
+    EXPECT_THAT(cmds[0].type(), Eq(Interp::Cmd::Homing));
+    EXPECT_THAT(cmds[0].homingVelocity(), Eq(Af{0.1f, 0.2f}));
+
+    EXPECT_THAT(cmds[1].type(), Eq(Interp::Cmd::Move));
+    EXPECT_THAT(cmds[1].maxVelocity(), Eq(Af{0.2f, 0.4f}));
+    EXPECT_THAT(cmds[1].maxAcceleration(), Eq(Af{0.02f, 0.02f}));
+    EXPECT_THAT(cmds[1].path(), ElementsAre(Ai{10, 20}, Ai{10, 10}, Ai{20, 20}));
+}
+
+TEST_F(GCodeInterpreter_Should, move_and_wait) {
+    interp_.setTicksPerSecond(10);
+    interp_.m100MaxVelocityOverride(Af{2.f, 4.f});
+    interp_.m101MaxAccelerationOverride(Af{2.f, 2.f});
+    interp_.setCurrentPosition(Ai{10, 20});
+
+    interp_.linearMove({10.f, 10.f}, inf());
+
+    interp_.g4Wait(10);
+
+    interp_.m100MaxVelocityOverride(Af{1.f, 2.f});
+    interp_.m101MaxAccelerationOverride(Af{4.f, 4.f});
+    interp_.linearMove({20.f, 20.f}, inf());
+
+    auto cmds = interp_.commands();
+    ASSERT_THAT(cmds, SizeIs(3));
+
+    EXPECT_THAT(cmds[0].type(), Eq(Interp::Cmd::Move));
+    EXPECT_THAT(cmds[0].maxVelocity(), Eq(Af{0.2f, 0.4f}));
+    EXPECT_THAT(cmds[0].maxAcceleration(), Eq(Af{0.02f, 0.02f}));
+    EXPECT_THAT(cmds[0].path(), ElementsAre(Ai{10, 20}, Ai{10, 10}));
+
+    EXPECT_THAT(cmds[1].type(), Eq(Interp::Cmd::Wait));
+    EXPECT_THAT(cmds[1].waitDuration(), Eq(100));
+
+    EXPECT_THAT(cmds[2].type(), Eq(Interp::Cmd::Move));
+    EXPECT_THAT(cmds[2].maxVelocity(), Eq(Af{0.1f, 0.2f}));
+    EXPECT_THAT(cmds[2].maxAcceleration(), Eq(Af{0.04f, 0.04f}));
+    EXPECT_THAT(cmds[2].path(), ElementsAre(Ai{10, 10}, Ai{20, 20}));
+}
+
+TEST(Command_Should, be_moved) {
+    Cmd c1({Ai{1, 2}}, Af{1, 1}, Af{2, 2});
+    Cmd c2 = std::move(c1);
+
+    EXPECT_THAT(c1.path(), IsEmpty());
+    EXPECT_THAT(c2.path(), Not(IsEmpty()));
+}
+
 }

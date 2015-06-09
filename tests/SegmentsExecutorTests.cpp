@@ -9,7 +9,7 @@ using namespace std;
 namespace {
 template <size_t AxesSize>
 struct MotorMock {
-    MotorMock() : current{axConst<AxesSize>(0), axConst<AxesSize>(0)} {}
+    MotorMock() : dir(axZero<Ai>()), current{axZero<Ai>(), axZero<Ai>()} {}
 
     using Ai = Axes<int32_t, AxesSize>;
 
@@ -29,16 +29,22 @@ struct MotorMock {
         Ai x, step;
     };
 
+    template <int i, int reverse>
+    void writeDirection() {
+        dir[i] = (reverse ? -1 : 1);
+    }
+
     template <int i, int step>
-    void write() {
-        current.x[i] += step;
-        current.step[i] = step;
+    void writeStep() {
+        current.step[i] = (step ? dir[i] : 0);
+        current.x[i] += current.step[i];
     }
 
     void update() { data.emplace_back(current); }
 
     void setPosition(Ai const &position) { current.x = position; }
 
+    Ai dir;
     Step current;
     vector<Step> data;
 };

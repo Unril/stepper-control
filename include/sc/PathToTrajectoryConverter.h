@@ -3,14 +3,13 @@
 #include "Axes.h"
 
 namespace StepperControl {
-
 /*
 From "Turning Paths Into Trajectories Using Parabolic Blends"
 by Tobias Kunz and Mike Stilman
 https://github.com/willowgarage/arm_navigation/blob/master/constraint_aware_spline_smoother/include/constraint_aware_spline_smoother/KunzStilman/Trajectory.h
 
 Calculate initial durations.
-dT_i = max_j(|q_i+1[j] - q_i[j]|/vmax[j])
+DT_i = max_j(|q_i+1[j] - q_i[j]|/vmax[j])
 v_i = (q_i+1 - q_i)/dT_i
 
 And blend durations.
@@ -31,15 +30,9 @@ class PathToTrajectoryConverter {
         maxAcceleration_.fill(0.1f);
     }
 
-    template <typename T>
-    void setAll(T const &interpreter) {
-        setPath(interpreter.commands().back().path()); /// !!!
-        setMaxVelocity(interpreter.maxVelocity());
-        setMaxAcceleration(interpreter.maxAcceleration());
-    }
-
     // In steps.
     void setPath(std::vector<Ai> const &path) { path_ = path; }
+
     void setPath(std::vector<Ai> &&path) { path_ = move(path); }
 
     // Should be less or equal that 0.4 to propper segment generation.
@@ -102,23 +95,20 @@ class PathToTrajectoryConverter {
     }
 
     std::vector<Ai> const &path() const { return path_; }
+
     std::vector<Ai> &path() { return path_; }
 
     std::vector<Af> const &velocities() const { return velocities_; }
 
     std::vector<Af> const &accelerations() const { return accelerations_; }
 
-    std::vector<int32_t> durations() const {
-        std::vector<int32_t> Dts(Dts_.size());
-        transform(Dts_.begin(), Dts_.end(), Dts.begin(), &ceilf);
-        return Dts;
-    }
+    std::vector<float> const &durations() const { return Dts_; }
 
-    std::vector<int32_t> blendDurations() const {
-        std::vector<int32_t> tbs(tbs_.size());
-        transform(tbs_.begin(), tbs_.end(), tbs.begin(), &ceilf);
-        return tbs;
-    }
+    std::vector<float> &durations() { return Dts_; }
+
+    std::vector<float> const &blendDurations() const { return tbs_; }
+
+    std::vector<float> &blendDurations() { return tbs_; }
 
     Af const &maxVelocity() const { return maxVelocity_; }
 

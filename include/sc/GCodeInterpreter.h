@@ -1,82 +1,11 @@
 #pragma once
 
 #include "GCodeParser.h"
+#include "Command.h"
 
 namespace StepperControl {
-template <size_t AxesSize>
-struct Command {
-    using Af = Axes<float, AxesSize>;
-    using Ai = Axes<int32_t, AxesSize>;
 
-    enum Type {
-        Move,
-        Wait,
-        Homing,
-    };
-
-    // Move
-    Command(std::vector<Ai> const &path, Af const &maxVel, Af const &maxAccel)
-        : type_(Move), path_(path), maxVelocity_(maxVel), maxAcceleration_(maxAccel) {}
-
-    // Wait
-    explicit Command(int32_t waitDuration) : type_(Wait), waitDuration_(waitDuration) {}
-
-    // Homing
-    explicit Command(Af const &homingVelocity) : type_(Homing), homingVelocity_(homingVelocity) {}
-
-    inline void push_back(Ai const &waypoint) { path_.push_back(waypoint); }
-
-    inline bool empty() const { return path_.empty(); }
-
-    inline Type const &type() const { return type_; }
-
-    inline std::vector<Ai> const &path() const {
-        scAssert(type() == Move);
-        return path_;
-    }
-
-    inline Af const &maxVelocity() const {
-        scAssert(type() == Move);
-        return maxVelocity_;
-    }
-
-    inline Af const &homingVelocity() const {
-        scAssert(type() == Homing);
-        return homingVelocity_;
-    }
-
-    inline Af const &maxAcceleration() const {
-        scAssert(type() == Move);
-        return maxAcceleration_;
-    }
-
-    inline int32_t waitDuration() const {
-        scAssert(type() == Wait);
-        return waitDuration_;
-    }
-
-  private:
-    Type type_;
-
-    // In steps.
-    std::vector<Ai> path_;
-
-    // In steps per tick.
-    Af maxVelocity_;
-
-    union {
-        // In steps per tick.
-        Af homingVelocity_;
-
-        // In steps per tick^2.
-        Af maxAcceleration_;
-
-        // In ticks.
-        int32_t waitDuration_;
-    };
-};
-
-// Intepreter reacts to callbacks from parser and creates path from them.
+// Intepreter reacts to callbacks from parser and creates commands from them.
 template <size_t AxesSize>
 class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
   public:
@@ -86,24 +15,26 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
 
     GCodeInterpreter()
         : mode_(Absolute), currentPos_(axConst<Ai>(0)), homingVel_(axConst<Af>(0.1f)),
-          maxVel_(axConst<Af>(0.5f)), maxAcc_(axConst<Af>(0.1f)), stPerUnit_(axConst<Af>(1.f)),
+          maxVel_(axConst<Af>(0.5f)), maxAcc_(axConst<Af>(0.1f)), stepPerUnit_(axConst<Af>(1.f)),
           ticksPerSec_(1) {}
 
     void feedrateOverride(float feed) override {}
 
     // Max velocity and acceleration should be set befor this call.
     void linearMove(Af const &positionInUnits, float feed) override {
+        // If it is first move command in commands list.
         if (cmds_.empty() || cmds_.back().type() != Cmd::Move) {
             // Start path from current position.
             cmds_.push_back(Cmd({currentPos_}, maxVelocity(), maxAcceleration()));
         }
 
-        auto newPosition = positionInUnits * stPerUnit_;
+        auto position = positionInUnits * stepPerUnit_;
         if (mode_ == Relative) {
-            newPosition += axCast<float>(currentPos_);
+            position += axCast<float>(currentPos_);
         }
+
         auto previousPosition = currentPos_;
-        tansformOnlyFinite(newPosition, currentPos_, &lroundf);
+        tansformOnlyFinite(position, currentPos_, &lroundf);
         if (previousPosition != currentPos_) {
             cmds_.back().push_back(currentPos_);
         }
@@ -116,7 +47,10 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
     void g1LinearMove(Af const &pos, float feed) override { linearMove(pos, feed); }
 
     // Ticks per second should be set before this call.
-    void g4Wait(float sec) override { cmds_.push_back(Cmd(lround(sec * ticksPerSec_))); }
+    void g4Wait(float sec) override {
+        auto ticks = lround(sec * ticksPerSec_);
+        cmds_.push_back(Cmd(ticks));
+    }
 
     // Homing velocity should be set befor this call.
     void g28RunHomingCycle() override { cmds_.push_back(Cmd(homingVel_)); }
@@ -124,32 +58,33 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
     void g90g91DistanceMode(DistanceMode mode) override { mode_ = mode; }
 
     // Ticks per second and steps per unit lenght should be set before this call.
-    void m100MaxVelocityOverride(Af const &vel) override {
-        auto c = stPerUnit_ / static_cast<float>(ticksPerSec_);
-        copyOnlyFinite(vel * c, maxVel_);
+    void m100MaxVelocityOverride(Af const &unitsPerSec) override {
+        auto stepsPerTick = unitsPerSec * stepPerUnit_ / static_cast<float>(ticksPerSec_);
+        copyOnlyFinite(stepsPerTick, maxVel_);
         scAssert(all(gt(maxVel_, axZero<Af>())));
         applyInplace(maxVel_, Clamp<float>(0, 0.5f));
     }
 
     // Ticks per second and steps per unit lenght should be set before this call.
-    void m101MaxAccelerationOverride(Af const &acc) override {
-        auto c = stPerUnit_ / static_cast<float>(ticksPerSec_ * ticksPerSec_);
-        copyOnlyFinite(acc * c, maxAcc_);
+    void m101MaxAccelerationOverride(Af const &unitsPerSecSqr) override {
+        auto stepsPerTickSqr =
+            unitsPerSecSqr * stepPerUnit_ / static_cast<float>(ticksPerSec_ * ticksPerSec_);
+        copyOnlyFinite(stepsPerTickSqr, maxAcc_);
         scAssert(all(gt(maxAcc_, axZero<Af>())));
     }
 
     // Steps per unit lenght should be set before this call.
-    void m102StepsPerUnitLengthOverride(Af const &spl) override {
-        copyOnlyFinite(spl, stPerUnit_);
-        scAssert(all(gt(stPerUnit_, axZero<Af>())));
+    void m102StepsPerUnitLengthOverride(Af const &stepsPerUnit) override {
+        copyOnlyFinite(stepsPerUnit, stepPerUnit_);
+        scAssert(all(gt(stepPerUnit_, axZero<Af>())));
     }
 
     // Ticks per second and steps per unit lenght should be set before this call.
-    void m103HomingVelocityOverride(Af const &vel) override {
-        auto c = stPerUnit_ / static_cast<float>(ticksPerSec_);
-        copyOnlyFinite(vel * c, homingVel_);
+    void m103HomingVelocityOverride(Af const &unitsPerSec) override {
+        auto stepsPerTick = unitsPerSec * stepPerUnit_ / static_cast<float>(ticksPerSec_);
+        copyOnlyFinite(stepsPerTick, homingVel_);
         scAssert(all(gt(homingVel_, axZero<Af>())));
-        applyInplace(homingVel_, Clamp<float>(0, 0.5f));
+        applyInplace(homingVel_, Clamp<float>(0.0f, 0.5f));
     }
 
     void error(size_t pos, const char *line, const char *reason) override {
@@ -161,6 +96,8 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
         ticksPerSec_ = tps;
     }
 
+    void setCurrentPosition(Ai const &pos) { currentPos_ = pos; }
+
     std::vector<Cmd> const &commands() const { return cmds_; }
 
     std::vector<Cmd> &commands() { return cmds_; }
@@ -171,11 +108,15 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
 
     Af const &maxAcceleration() const { return maxAcc_; }
 
-    Af const &stepsPerUnitLength() const { return stPerUnit_; }
+    Af const &stepsPerUnitLength() const { return stepPerUnit_; }
 
     Af const &homingVelocity() const { return homingVel_; }
 
     int32_t ticksPerSecond() const { return ticksPerSec_; }
+
+    void clearCommands() { cmds_.clear(); }
+
+    bool hasCommands() { return !cmds_.empty(); }
 
   private:
     std::vector<Cmd> cmds_;
@@ -184,7 +125,7 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
     Af homingVel_;
     Af maxVel_;
     Af maxAcc_;
-    Af stPerUnit_;
+    Af stepPerUnit_;
     int32_t ticksPerSec_;
 };
 }

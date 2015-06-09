@@ -14,11 +14,12 @@ class SegmentsExecutor {
     using Ai = Axes<int32_t, AxesSize>;
 
     SegmentsExecutor(TMotor *motor, TTicker *ticker)
-        : running_(false), motor_(motor), ticker_(ticker), ticksPerSecond_(1) {
+        : running_(false), motor_(motor), ticker_(ticker), ticksPerSecond_(1),
+          position_(axZero<Ai>()) {
         scAssert(motor_ && ticker_);
     }
 
-    int32_t ticksPerSecond() const { return ticksPerSecond_; }
+    inline int32_t ticksPerSecond() const { return ticksPerSecond_; }
 
     void setTicksPerSecond(int32_t ticksPerSecond) {
         scAssert(ticksPerSecond > 0);
@@ -26,12 +27,17 @@ class SegmentsExecutor {
     }
 
     void setSegments(Segments const &segments) { segments_ = segments; }
+
     void setSegments(Segments &&segments) { segments_ = move(segments); }
 
+    Segments const &segments() const { return segments_; }
+
     void start() {
-        if (!segments_.empty()) {
-            running_ = true;
+        if (segments_.empty()) {
+            return;
         }
+        running_ = true;
+        tick_ = 0;
         sg_ = segments_.begin();
 
         // Start timer.
@@ -39,9 +45,11 @@ class SegmentsExecutor {
     }
 
     void startHoming() {
-        if (!segments_.empty()) {
-            running_ = true;
+        if (segments_.empty()) {
+            return;
         }
+        running_ = true;
+        tick_ = 0;
         // There should be one linear segment with small negative velocity.
         sg_ = segments_.begin();
 
@@ -49,7 +57,7 @@ class SegmentsExecutor {
         ticker_->attach_us(this, &SegmentsExecutor::tickHoming, 2000000 / ticksPerSecond_);
     }
 
-    void tick() {
+    inline void tick() {
         // Integrate next interval.
         if (sg_->dt != 0) {
             tickI<0>();
@@ -66,7 +74,7 @@ class SegmentsExecutor {
         stop();
     }
 
-    void tickHoming() {
+    inline void tickHoming() {
         // Check end switch for every axis and stop if hit.
         for (size_t i = 0; i < AxesSize; i++) {
             if (motor_->checkEndSwitchHit(i)) {
@@ -80,16 +88,23 @@ class SegmentsExecutor {
             return;
         }
 
-        // Stop when all switches are hit.
+        // Set position and stop when all switches are hit.
+        position_.fill(0);
         stop();
     }
 
-    bool running() const { return running_; }
+    inline bool running() const { return running_; }
 
     void stop() {
         running_ = false;
         ticker_->detach();
     }
+
+    inline Ai const &position() const { return position_; }
+
+    inline void setPosition(Ai const &position) { position_ = position; }
+
+    inline int32_t ticks() const { return tick_; }
 
   private:
     // Integrate i-th axis.
@@ -98,36 +113,51 @@ class SegmentsExecutor {
         // Integrate fist half of interval
         sg_->velocity[i] += sg_->halfAcceleration[i];
 
-        // Update difference between rounded and actual position.
-        sg_->error[i] += sg_->velocity[i];
-
+        // Direction.
         if (sg_->velocity[i] >= 0) {
             // Positive or zero slope.
+            motor_->template writeDirection<i, 0>();
+
+            // Update difference between rounded and actual position.
+            sg_->error[i] += sg_->velocity[i];
+
+            // Integrate second half of interval
+            sg_->velocity[i] += sg_->halfAcceleration[i];
+
             // error >= 0.5
             if (2 * sg_->error[i] >= sg_->denominator) {
                 // error -= 1
                 sg_->error[i] -= sg_->denominator;
-                // Step in positive direcion.
-                motor_->template write<i, 1>();
+                // Rizing edge.
+                ++position_[i];
+                motor_->template writeStep<i, 1>();
             } else {
-                // No steps
-                motor_->template write<i, 0>();
+                // Falling edge.
+                motor_->template writeStep<i, 0>();
             }
         } else {
             // Negative slope.
+            motor_->template writeDirection<i, 1>();
+
+            // Dublicate code to make delay between direction and step writes.
+            // Update difference between rounded and actual position.
+            sg_->error[i] += sg_->velocity[i];
+
+            // Integrate second half of interval
+            sg_->velocity[i] += sg_->halfAcceleration[i];
+
             // -error >= 0.5
             if (-2 * sg_->error[i] >= sg_->denominator) {
                 // error += 1
                 sg_->error[i] += sg_->denominator;
-                // Step in negative direction
-                motor_->template write<i, -1>();
+                // Rizing edge.
+                --position_[i];
+                motor_->template writeStep<i, 1>();
             } else {
-                // No steps
-                motor_->template write<i, 0>();
+                // Falling edge.
+                motor_->template writeStep<i, 0>();
             }
         }
-        // Integrate second half of interval
-        sg_->velocity[i] += sg_->halfAcceleration[i];
 
         // Integrate next axis.
         tickI<i + 1>();
@@ -138,6 +168,7 @@ class SegmentsExecutor {
     FORCE_INLINE void tickI<AxesSize>() {
         // Update time.
         --sg_->dt;
+        ++tick_;
 
         // Notify motor about integration end.
         motor_->update();
@@ -149,5 +180,7 @@ class SegmentsExecutor {
     Segments segments_;
     typename Segments::iterator sg_;
     int32_t ticksPerSecond_;
+    Ai position_;
+    int32_t tick_;
 };
 }
