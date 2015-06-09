@@ -20,6 +20,8 @@ class CommandsExecutor {
     CommandsExecutor(int32_t ticksPerSecond, TMotor *motor, TTicker *ticker)
         : parser_(&interpreter_), executor_(motor, ticker) {
         wasRunning_ = false;
+        positionNotifyInterval_ = ticksPerSecond / 5;
+        positionNotifyTick_ = positionNotifyInterval_;
         nextCmd_ = cmds_.end();
         interpreter_.setTicksPerSecond(ticksPerSecond);
         executor_.setTicksPerSecond(ticksPerSecond);
@@ -34,19 +36,18 @@ class CommandsExecutor {
             stop();
         } else if (*line == '^') {
             reset();
+        } else if (*line == '?') {
+            printInfo();
         } else {
             parse(line);
         }
     }
 
-    Af currentPositionInUnits() const {
-        return axCast<float>(executor_.position()) / interpreter_.stepsPerUnitLength();
-    }
-
+    // Should be called in a loop.
     void update() {
-        auto interval = executor_.ticksPerSecond() / 5;
-        if (executor_.ticks() % interval == 0) {
-            std::cout << currentPositionInUnits() << std::endl;
+        if (executor_.ticks() > positionNotifyTick_) {
+            positionNotifyTick_ += positionNotifyInterval_;
+            axPrintln(currentPositionInUnits());
         }
 
         if (wasRunning_ && !executor_.running()) {
@@ -55,15 +56,27 @@ class CommandsExecutor {
             if (nextCmd_ != cmds_.end()) {
                 runNextCommand();
             } else {
-                // No more commands.
-                // Sync end.
-                interpreter_.setCurrentPosition(executor_.position());
+                positionNotifyTick_ = positionNotifyInterval_;
 
-                std::cout << currentPositionInUnits() << std::endl << "Completed" << std::endl;
+                // No more commands.
+                cmds_.clear();
+                nextCmd_ = cmds_.end();
+                syncPosition();
+
+                // Report completed.
+                axPrintln(currentPositionInUnits());
+                printf("Completed\n");
             }
         }
         wasRunning_ = executor_.running();
     }
+
+  private:
+    Af currentPositionInUnits() const {
+        return axCast<float>(executor_.position()) / interpreter_.stepsPerUnitLength();
+    }
+
+    void syncPosition() { interpreter_.setCurrentPosition(executor_.position()); }
 
     void runNextCommand() {
         switch (nextCmd_->type()) {
@@ -105,11 +118,11 @@ class CommandsExecutor {
     }
 
     void start() {
-        // Move commands from interpreter to local commands list.
         if (interpreter_.hasCommands()) {
+            // Move commands from interpreter to local commands list.
             cmds_ = move(interpreter_.commands());
-            nextCmd_ = cmds_.begin();
             interpreter_.clearCommands();
+            nextCmd_ = cmds_.begin();
 
             runNextCommand();
         }
@@ -119,17 +132,21 @@ class CommandsExecutor {
         executor_.stop();
         cmds_.clear();
         nextCmd_ = cmds_.end();
+        syncPosition();
     }
 
     void reset() {
         stop();
-        interpreter_.clear();
+        interpreter_.clearCommands();
     }
+
+    void printInfo() {}
 
     void parse(char const *line) { parser_.parseLine(line); }
 
-  private:
     bool wasRunning_;
+    int32_t positionNotifyInterval_;
+    int32_t positionNotifyTick_;
     typename std::vector<Cmd>::iterator nextCmd_;
     std::vector<Cmd> cmds_;
     GCodeInterpreter<AxesSize> interpreter_;

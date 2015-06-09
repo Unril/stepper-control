@@ -34,9 +34,9 @@ TEST_F(PathToTrajectoryConverter_Should, get_trajectory_for_one_axis_and_two_poi
     update();
 
     EXPECT_THAT(gen.velocities(), ElementsAre(Af{20, 0}));
-    EXPECT_THAT(gen.durations(), ElementsAre(5));
+    EXPECT_THAT(gen.durations(), ElementsAre(5.f));
     EXPECT_THAT(gen.accelerations(), ElementsAre(Af{10, 0}, Af{-10, 0}));
-    EXPECT_THAT(gen.blendDurations(), ElementsAre(2, 2));
+    EXPECT_THAT(gen.blendDurations(), ElementsAre(2.f, 2.f));
 }
 
 TEST_F(PathToTrajectoryConverter_Should, get_trajectory_for_two_axes_and_two_points) {
@@ -46,9 +46,9 @@ TEST_F(PathToTrajectoryConverter_Should, get_trajectory_for_two_axes_and_two_poi
     update();
 
     EXPECT_THAT(gen.velocities(), ElementsAre(Af{10, 20}));
-    EXPECT_THAT(gen.durations(), ElementsAre(10));
+    EXPECT_THAT(gen.durations(), ElementsAre(10.f));
     EXPECT_THAT(gen.accelerations(), ElementsAre(Af{5, 10}, Af{-5, -10}));
-    EXPECT_THAT(gen.blendDurations(), ElementsAre(2, 2));
+    EXPECT_THAT(gen.blendDurations(), ElementsAre(2.f, 2.f));
 }
 
 TEST_F(PathToTrajectoryConverter_Should, apply_slowdown) {
@@ -60,9 +60,9 @@ TEST_F(PathToTrajectoryConverter_Should, apply_slowdown) {
     update();
 
     EXPECT_THAT(gen.velocities(), ElementsAre(Af{10, 20}));
-    EXPECT_THAT(gen.durations(), ElementsAre(10));
+    EXPECT_THAT(gen.durations(), ElementsAre(10.f));
     EXPECT_THAT(gen.accelerations(), ElementsAre(Af{1, 2}, Af{-1, -2}));
-    EXPECT_THAT(gen.blendDurations(), ElementsAre(10, 10));
+    EXPECT_THAT(gen.blendDurations(), ElementsAre(10.f, 10.f));
 }
 
 TEST_F(PathToTrajectoryConverter_Should, move_to_different_directions) {
@@ -72,9 +72,9 @@ TEST_F(PathToTrajectoryConverter_Should, move_to_different_directions) {
     update();
 
     EXPECT_THAT(gen.velocities(), ElementsAre(Af{-20, 20}));
-    EXPECT_THAT(gen.durations(), ElementsAre(5));
+    EXPECT_THAT(gen.durations(), ElementsAre(5.f));
     EXPECT_THAT(gen.accelerations(), ElementsAre(Af{-10, 10}, Af{10, -10}));
-    EXPECT_THAT(gen.blendDurations(), ElementsAre(2, 2));
+    EXPECT_THAT(gen.blendDurations(), ElementsAre(2.f, 2.f));
 }
 
 TEST_F(PathToTrajectoryConverter_Should, remove_points_with_all_axes_close_than_threshold) {

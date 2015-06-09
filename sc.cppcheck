@@ -3,4 +3,10 @@
     <includedir>
         <dir name="include/"/>
     </includedir>
+    <defines>
+        <define name="__GNUG__"/>
+    </defines>
+    <libraries>
+        <library>sdl</library>
+    </libraries>
 </project>

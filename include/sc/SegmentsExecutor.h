@@ -14,8 +14,8 @@ class SegmentsExecutor {
     using Ai = Axes<int32_t, AxesSize>;
 
     SegmentsExecutor(TMotor *motor, TTicker *ticker)
-        : running_(false), motor_(motor), ticker_(ticker), ticksPerSecond_(1),
-          position_(axZero<Ai>()) {
+        : motor_(motor), position_(axZero<Ai>()), tick_(0), running_(false), ticker_(ticker),
+          ticksPerSecond_(1) {
         scAssert(motor_ && ticker_);
     }
 
@@ -44,13 +44,14 @@ class SegmentsExecutor {
         ticker_->attach_us(this, &SegmentsExecutor::tick, 1000000 / ticksPerSecond_);
     }
 
+    // Execute segment until all end switches are hit.
+    // There should be one linear segment with small negative velocity.
     void startHoming() {
         if (segments_.empty()) {
             return;
         }
         running_ = true;
         tick_ = 0;
-        // There should be one linear segment with small negative velocity.
         sg_ = segments_.begin();
 
         // Start timer with lower frequency because we need to check switches in loop.
@@ -60,13 +61,13 @@ class SegmentsExecutor {
     inline void tick() {
         // Integrate next interval.
         if (sg_->dt != 0) {
-            tickI<0>();
+            tickI(UIntConst<0>());
             return;
         }
 
         // If there is next segment then integrate it's first interval.
         if (++sg_ != segments_.end()) {
-            tickI<0>();
+            tickI(UIntConst<0>());
             return;
         }
 
@@ -82,9 +83,9 @@ class SegmentsExecutor {
             }
         }
 
-        // If any switch is not hit then integrate next interval.
+        // If any of switches is not hit then integrate next interval.
         if (any(neq(sg_->velocity, 0))) {
-            tickI<0>();
+            tickI(UIntConst<0>());
             return;
         }
 
@@ -96,8 +97,9 @@ class SegmentsExecutor {
     inline bool running() const { return running_; }
 
     void stop() {
-        running_ = false;
         ticker_->detach();
+        running_ = false;
+        tick_ = 0;
     }
 
     inline Ai const &position() const { return position_; }
@@ -109,63 +111,70 @@ class SegmentsExecutor {
   private:
     // Integrate i-th axis.
     template <size_t i>
-    FORCE_INLINE void tickI() {
+    FORCE_INLINE void tickI(UIntConst<i>) {
+        auto const denominator = sg_->denominator;
+        auto v = sg_->velocity[i];
+        auto const aHalf = sg_->halfAcceleration[i];
+        auto error = sg_->error[i];
+
         // Integrate fist half of interval
-        sg_->velocity[i] += sg_->halfAcceleration[i];
+        v += aHalf;
 
         // Direction.
-        if (sg_->velocity[i] >= 0) {
+        if (v >= 0) {
             // Positive or zero slope.
-            motor_->template writeDirection<i, 0>();
+            motor_->writeDirection(UIntConst<i>(), UIntConst<0>());
 
             // Update difference between rounded and actual position.
-            sg_->error[i] += sg_->velocity[i];
+            error += v;
 
             // Integrate second half of interval
-            sg_->velocity[i] += sg_->halfAcceleration[i];
+            v += aHalf;
 
             // error >= 0.5
-            if (2 * sg_->error[i] >= sg_->denominator) {
+            if (2 * error >= denominator) {
                 // error -= 1
-                sg_->error[i] -= sg_->denominator;
-                // Rizing edge.
+                error -= denominator;
+                // Rising edge.
                 ++position_[i];
-                motor_->template writeStep<i, 1>();
+                motor_->writeStep(UIntConst<i>(), UIntConst<1>());
             } else {
                 // Falling edge.
-                motor_->template writeStep<i, 0>();
+                motor_->writeStep(UIntConst<i>(), UIntConst<0>());
             }
         } else {
             // Negative slope.
-            motor_->template writeDirection<i, 1>();
+            motor_->writeDirection(UIntConst<i>(), UIntConst<1>());
 
-            // Dublicate code to make delay between direction and step writes.
+            // Duplicate code to make delay between direction and step writes.
             // Update difference between rounded and actual position.
-            sg_->error[i] += sg_->velocity[i];
+            error += v;
 
             // Integrate second half of interval
-            sg_->velocity[i] += sg_->halfAcceleration[i];
+            v += aHalf;
 
             // -error >= 0.5
-            if (-2 * sg_->error[i] >= sg_->denominator) {
+            if (-2 * error >= denominator) {
                 // error += 1
-                sg_->error[i] += sg_->denominator;
-                // Rizing edge.
+                error += denominator;
+                // Rising edge.
                 --position_[i];
-                motor_->template writeStep<i, 1>();
+                motor_->writeStep(UIntConst<i>(), UIntConst<1>());
             } else {
                 // Falling edge.
-                motor_->template writeStep<i, 0>();
+                motor_->writeStep(UIntConst<i>(), UIntConst<0>());
             }
         }
 
+        sg_->velocity[i] = v;
+        sg_->error[i] = error;
+
         // Integrate next axis.
-        tickI<i + 1>();
+        tickI(UIntConst<i + 1>());
     }
 
-    // All axes were integreted.
-    template <>
-    FORCE_INLINE void tickI<AxesSize>() {
+    // All axes were integrated.
+    FORCE_INLINE void tickI(UIntConst<AxesSize>) {
         // Update time.
         --sg_->dt;
         ++tick_;
@@ -174,13 +183,13 @@ class SegmentsExecutor {
         motor_->update();
     }
 
-    bool running_;
-    TMotor *motor_;
-    TTicker *ticker_;
-    Segments segments_;
     typename Segments::iterator sg_;
-    int32_t ticksPerSecond_;
+    TMotor *motor_;
     Ai position_;
     int32_t tick_;
+    bool running_;
+    TTicker *ticker_;
+    Segments segments_;
+    int32_t ticksPerSecond_;
 };
 }

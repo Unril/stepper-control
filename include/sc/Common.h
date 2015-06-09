@@ -2,11 +2,10 @@
 
 #include <cmath>
 #include <cstdint>
-#include <stdexcept>
+#include <limits>
+#include <algorithm>
 
 namespace StepperControl {
-
-#ifdef NDEBUG
 
 #ifdef __GNUG__
 #define FORCE_INLINE __attribute__((always_inline))
@@ -16,12 +15,16 @@ namespace StepperControl {
 #define FORCE_INLINE inline
 #endif
 
+#ifdef NDEBUG
+
 #define scAssert(_Expression) ((void)0)
 #define scExecute(_Expression) ((void)0)
 
-#else /* NDEBUG */
+#elif __MBED__
 
-#define FORCE_INLINE inline
+#define scAssert(_Expression) MBED_ASSERT(_Expression)
+
+#else
 
 #define scAssert(_Expression)                                                                      \
     do {                                                                                           \
@@ -38,7 +41,7 @@ inline int32_t lTruncTowardInf(float v) {
     return static_cast<int32_t>(v < 0.0f ? floor(v) : ceil(v));
 }
 
-FORCE_INLINE float inf() { return std::numeric_limits<float>::infinity(); }
+inline float inf() { return std::numeric_limits<float>::infinity(); }
 
 template <typename T>
 struct Clamp {
@@ -46,4 +49,7 @@ struct Clamp {
     inline T operator()(T val) { return std::min(maxVal, std::max(minVal, val)); }
     T minVal, maxVal;
 };
+
+template <size_t i>
+struct UIntConst{};
 }

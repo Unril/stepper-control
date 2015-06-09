@@ -30,13 +30,13 @@ struct MotorMock {
     };
 
     template <int i, int reverse>
-    void writeDirection() {
+    void writeDirection(UIntConst<i>, UIntConst<reverse>) {
         dir[i] = (reverse ? -1 : 1);
     }
 
-    template <int i, int step>
-    void writeStep() {
-        current.step[i] = (step ? dir[i] : 0);
+    template <int i, int edge>
+    void writeStep(UIntConst<i>, UIntConst<edge>) {
+        current.step[i] = (edge ? dir[i] : 0);
         current.x[i] += current.step[i];
     }
 

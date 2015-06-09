@@ -2,6 +2,8 @@
 
 #include "Axes.h"
 
+#include <vector>
+
 namespace StepperControl {
 // Represents gcode program instruction.
 template <size_t AxesSize>

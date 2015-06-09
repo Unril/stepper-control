@@ -27,3 +27,8 @@
 *.out
 *.app
 /tests/x64/Debug
+/STNucleoF401/.objs
+/STNucleoF401/build
+/STNucleoF401/mbed/.hg
+/STNucleoF401/.hg
+/STNucleoF401/doxygen

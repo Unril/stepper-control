@@ -2,6 +2,8 @@
 
 #include "Segment.h"
 
+#include <algorithm>
+
 namespace StepperControl {
 // It creates sequence of linear and parabolic segments from given path points,
 // durations between points and durations of blend segments.
@@ -29,8 +31,8 @@ class TrajectoryToSegmentsConverter {
         scAssert(path_.size() - 1 == Dts_.size());
         scAssert(path_.size() == tbs_.size());
 
-        transform(Dts_.begin(), Dts_.end(), Dts_.begin(), &ceilf);
-        transform(tbs_.begin(), tbs_.end(), tbs_.begin(), &ceilf);
+        std::transform(Dts_.begin(), Dts_.end(), Dts_.begin(), &ceilf);
+        std::transform(tbs_.begin(), tbs_.end(), tbs_.begin(), &ceilf);
 
         segments_.clear();
         for (size_t i = 0; i < path_.size(); i++) {
@@ -108,8 +110,16 @@ class TrajectoryToSegmentsConverter {
         auto tBlendPart = (tBlend + tBlendNext) * 0.5f;
         auto tLine = Dt - tBlendPart;
         auto DxLine = Dx - (DxBlend + DxBlendNext);
+
         auto tLineTrunc = lTruncTowardInf(tLine);
         if (tLineTrunc > 0) {
+            // Check rounded slope <= 0.5 and correct line duration if neccesary.
+            for (size_t j = 0; j < AxesSize; ++j) {
+                auto DxAbsX2 = abs(DxLine[j] * 2);
+                if (tLineTrunc < DxAbsX2) {
+                    tLineTrunc = DxAbsX2;
+                }
+            }
             segments_.emplace_back(tLineTrunc, DxLine);
         }
     }

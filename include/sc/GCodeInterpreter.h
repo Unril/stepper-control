@@ -88,7 +88,7 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
     }
 
     void error(size_t pos, const char *line, const char *reason) override {
-        std::cout << "Error: " << reason << " at " << pos << " in " << line;
+        printf("Error: %s at %d in %s", reason, static_cast<int>(pos), line);
     }
 
     void setTicksPerSecond(int32_t tps) {
@@ -116,7 +116,7 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
 
     void clearCommands() { cmds_.clear(); }
 
-    bool hasCommands() { return !cmds_.empty(); }
+    bool hasCommands() const { return !cmds_.empty(); }
 
   private:
     std::vector<Cmd> cmds_;

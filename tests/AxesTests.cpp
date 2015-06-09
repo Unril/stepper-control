@@ -145,7 +145,7 @@ TEST_F(Axes_Should, apply_function) {
     auto a = Af2{3.f, 4.f};
     applyInplace(a, [](float v){return v*10;});
 
-    EXPECT_THAT(apply(a, [](float v){return v*2;}), ElementsAre(60.f, 80.f));
+    EXPECT_THAT(apply<float>(a, [](float v){return v*2;}), ElementsAre(60.f, 80.f));
     EXPECT_THAT(a, ElementsAre(30.f, 40.f));
 }
 

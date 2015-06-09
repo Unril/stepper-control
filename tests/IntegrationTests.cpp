@@ -24,20 +24,20 @@ struct MotorMock {
     MotorMock() : current(axZero<Ai>()), dir(axZero<Ai>()) {}
 
     template <int i, int reverse>
-    void writeDirection() {
+    void writeDirection(UIntConst<i>, UIntConst<reverse>) {
         dir[i] = (reverse == 0 ? 1 : -1);
     }
 
-    template <int i, int step>
-    void writeStep() {
-        current[i] += (step ? dir[i] : 0);
+    template <int i, int edge>
+    void writeStep(UIntConst<i>, UIntConst<edge>) {
+        current[i] += (edge ? dir[i] : 0);
     }
 
     void update() { data.emplace_back(current); }
 
     void setPosition(Ai const &position) { current = position; }
 
-    bool checkEndSwitchHit(size_t i) {
+    static bool checkEndSwitchHit(size_t i) {
         return false;
     }
 
@@ -84,8 +84,8 @@ struct Integration_Should : Test {
 };
 
 TEST_F(Integration_Should, create_an_execute_trajectory_from_random_path_points) {
-    interpreter.m100MaxVelocityOverride({0.5f, 0.1f});
-    interpreter.m101MaxAccelerationOverride({0.1f, 0.002f});
+   // interpreter.m100MaxVelocityOverride({0.5f, 0.1f});
+    //interpreter.m101MaxAccelerationOverride({0.1f, 0.002f});
 
     for (int i = 0; i < 20; ++i) {
         stringstream ss;
