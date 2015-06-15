@@ -2,21 +2,46 @@
 
 #include "GCodeParser.h"
 #include "Command.h"
+#include "PathToTrajectoryConverter.h"
+#include "TrajectoryToSegmentsConverter.h"
+#include "SegmentsExecutor.h"
 
 namespace StepperControl {
+template <size_t AxesSize>
+struct ISegmentsExecutor {
+    using Ai = Axes<int32_t, AxesSize>;
+    using Sg = Segment<AxesSize>;
+    using Segments = std::vector<Sg>;
+
+    virtual ~ISegmentsExecutor() {}
+
+    virtual void start() = 0;
+    virtual void stop() = 0;
+    virtual bool isRunning() = 0;
+    virtual Ai const &position() = 0;
+    virtual void setSegments(Segments const &segments) = 0;
+    virtual void setSegments(Segments &&segments) = 0;
+};
 
 // Interpreter reacts to callbacks from parser and creates commands from them.
 template <size_t AxesSize>
-class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
+class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
   public:
     using Af = Axes<float, AxesSize>;
     using Ai = Axes<int32_t, AxesSize>;
     using Cmd = Command<AxesSize>;
+    using Seg = Segment<AxesSize>;
 
-    GCodeInterpreter()
-        : mode_(Absolute), currentPos_(axConst<Ai>(0)), homingVel_(axConst<Af>(0.1f)),
-          maxVel_(axConst<Af>(0.5f)), maxAcc_(axConst<Af>(0.1f)), stepPerUnit_(axConst<Af>(1.f)),
-          ticksPerSec_(1) {}
+    explicit GCodeInterpreter(ISegmentsExecutor<AxesSize> *exec)
+        : executor_(exec), notifyInterval_(1), nextNotifyTick_(1), wasRunning_(false),
+          mode_(Absolute), currentPos_(axConst<Ai>(0)), homingVel_(axConst<Af>(0.1f)),
+          maxVel_(axConst<Af>(0.5f)), maxAcc_(axConst<Af>(0.1f)), stepPerUnit_(axConst<Af>(1.f)), ticksPerSec_(1) {
+        scAssert(exec != nullptr);
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Callbacks
+    ///////////////////////////////////////////////////////////////////////////
 
     void feedrateOverride(float feed) override {}
 
@@ -91,6 +116,44 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
         printf("Error: %s at %d in %s\n", reason, static_cast<int>(pos), line);
     }
 
+    void start() override {}
+
+    void stop() override {}
+
+    void printInfo() const override {
+        printf("Current position: ");
+        axPrintf(currentPos_);
+        printf("\nTicks per second: %ld", static_cast<long>(ticksPerSec_));
+        printf("\nCommands (%ld): ", static_cast<long>(cmds_.size()));
+        for (auto &cmd : cmds_) {
+            cmd.printInfo();
+        }
+        printf("\n");
+    }
+
+    void clearCommandsBuffer() override { cmds_.clear(); }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Control
+    ///////////////////////////////////////////////////////////////////////////
+
+    void update() {
+        if (executor_->getStoppedAndReset()) {
+            syncPosition();
+            axPrintf(currentPositionInUnits());
+            printf("\nCompleted\n");
+        }
+    }
+
+    void printCurrentPosition() {
+        axPrintf(currentPositionInUnits());
+        printf("\n");
+    }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // State
+    ///////////////////////////////////////////////////////////////////////////
+
     void setTicksPerSecond(int32_t tps) {
         scAssert(tps > 0);
         ticksPerSec_ = tps;
@@ -118,17 +181,38 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
 
     bool hasCommands() const { return !cmds_.empty(); }
 
-    void printInfo() const {
-        printf("Ticks per second: %ld", static_cast<long>(ticksPerSec_));
-        printf("\nCommands (%ld): ", static_cast<long>(cmds_.size()));
-        for (auto &cmd : cmds_) {
-            cmd.printInfo();
-        }
-        printf("\n");
-    }
+    void setNotifyDelay(float sec) {}
 
   private:
+    std::vector<Seg> moveCommandToSegments(Cmd &cmd) const {
+        PathToTrajectoryConverter<AxesSize> trajGen;
+        trajGen.setMaxVelocity(cmd->maxVelocity());
+        trajGen.setMaxAcceleration(cmd->maxAcceleration());
+        trajGen.setPath(move(cmd->path()));
+        trajGen.update();
+
+        TrajectoryToSegmentsConverter<AxesSize> segGen;
+        segGen.setPath(move(trajGen.path()));
+        segGen.setBlendDurations(move(trajGen.blendDurations()));
+        segGen.setDurations(move(trajGen.durations()));
+        segGen.update();
+
+        return move(segGen.segments());
+    }
+
+    Af currentPositionInUnits() const {
+        return axCast<float>(executor_->position()) / stepPerUnit_;
+    }
+
+    void syncPosition() { setCurrentPosition(executor_->position()); }
+
+    ISegmentsExecutor<AxesSize> *executor_;
+    int32_t notifyInterval_;
+    int32_t nextNotifyTick_;
+    bool wasRunning_;
+
     std::vector<Cmd> cmds_;
+    std::vector<Seg> segments_;
     DistanceMode mode_;
     Ai currentPos_;
     Af homingVel_;

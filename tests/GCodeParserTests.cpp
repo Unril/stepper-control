@@ -9,7 +9,7 @@ namespace {
 const size_t AxesSize = 3;
 using Af = Axes<float, AxesSize>;
 
-struct GCodeParserCallbacksMock : GCodeParserCallbacks<AxesSize> {
+struct GCodeParserCallbacksMock : IGCodeInterpreter<AxesSize> {
     MOCK_METHOD1(feedrateOverride, void(float));
     MOCK_METHOD2(linearMove, void(Af const &, float));
     MOCK_METHOD1(g0RapidMove, void(Af const &));
@@ -21,6 +21,10 @@ struct GCodeParserCallbacksMock : GCodeParserCallbacks<AxesSize> {
     MOCK_METHOD1(m101MaxAccelerationOverride, void(Af const &));
     MOCK_METHOD1(m102StepsPerUnitLengthOverride, void(Af const &));
     MOCK_METHOD1(m103HomingVelocityOverride, void(Af const &));
+    MOCK_METHOD0(start, void());
+    MOCK_METHOD0(stop, void());
+    MOCK_CONST_METHOD0(printInfo, void());
+    MOCK_METHOD0(clearCommandsBuffer, void());
 
     void error(size_t pos, const char *line, const char *reason) override {
         std::stringstream ss;
@@ -211,5 +215,37 @@ TEST_F(GCodeParser_Should, not_parse_numbers_or_words) {
 TEST_F(GCodeParser_Should, skip_tabs_and_spaces) {
     EXPECT_CALL(cb_, linearMove(ElementsAre(-1000.f, 123.f, inf()), Eq(2.34f)));
     parse("\t\tA\t-1000   B  123 \t F+2.34\t \n");
+}
+
+TEST_F(GCodeParser_Should, start) {
+    EXPECT_CALL(cb_, start());
+    parse("~\n");
+}
+
+TEST_F(GCodeParser_Should, not_start_if_no_line_end) { EXPECT_THROW(parse("~"), std::logic_error); }
+
+TEST_F(GCodeParser_Should, stop) {
+    EXPECT_CALL(cb_, stop());
+    parse("!\n");
+}
+
+TEST_F(GCodeParser_Should, not_stop_if_no_line_end) { EXPECT_THROW(parse("!"), std::logic_error); }
+
+TEST_F(GCodeParser_Should, clearCommandsBuffer) {
+    EXPECT_CALL(cb_, clearCommandsBuffer());
+    parse("^\n");
+}
+
+TEST_F(GCodeParser_Should, not_clearCommandsBuffer_if_no_line_end) {
+    EXPECT_THROW(parse("^"), std::logic_error);
+}
+
+TEST_F(GCodeParser_Should, printInfo) {
+    EXPECT_CALL(cb_, printInfo());
+    parse("?\n");
+}
+
+TEST_F(GCodeParser_Should, not_printInfo_if_no_line_end) {
+    EXPECT_THROW(parse("?"), std::logic_error);
 }
 }

@@ -8,35 +8,43 @@ namespace StepperControl {
 enum DistanceMode { Absolute, Relative };
 
 template <size_t AxesSize>
-class GCodeParserCallbacks {
+class IGCodeInterpreter {
   public:
     using Af = Axes<float, AxesSize>;
 
-    virtual ~GCodeParserCallbacks() {}
+    virtual ~IGCodeInterpreter() {}
 
-    virtual void feedrateOverride(float feed) {}
+    virtual void feedrateOverride(float feed) = 0;
 
-    virtual void linearMove(Af const &pos, float feed) {}
+    virtual void linearMove(Af const &pos, float feed) = 0;
 
-    virtual void g0RapidMove(Af const &pos) {}
+    virtual void g0RapidMove(Af const &pos) = 0;
 
-    virtual void g1LinearMove(Af const &pos, float feed) {}
+    virtual void g1LinearMove(Af const &pos, float feed) = 0;
 
-    virtual void g4Wait(float sec) {}
+    virtual void g4Wait(float sec) = 0;
 
-    virtual void g28RunHomingCycle() {}
+    virtual void g28RunHomingCycle() = 0;
 
-    virtual void g90g91DistanceMode(DistanceMode) {}
+    virtual void g90g91DistanceMode(DistanceMode) = 0;
 
-    virtual void m100MaxVelocityOverride(Af const &vel) {}
+    virtual void m100MaxVelocityOverride(Af const &vel) = 0;
 
-    virtual void m101MaxAccelerationOverride(Af const &acc) {}
+    virtual void m101MaxAccelerationOverride(Af const &acc) = 0;
 
-    virtual void m102StepsPerUnitLengthOverride(Af const &spl) {}
+    virtual void m102StepsPerUnitLengthOverride(Af const &spl) = 0;
 
-    virtual void m103HomingVelocityOverride(Af const &vel) {}
+    virtual void m103HomingVelocityOverride(Af const &vel) = 0;
 
-    virtual void error(size_t pos, const char *line, const char *reason) {}
+    virtual void error(size_t pos, const char *line, const char *reason) = 0;
+
+    virtual void start() = 0;
+
+    virtual void stop() = 0;
+
+    virtual void printInfo() const = 0;
+
+    virtual void clearCommandsBuffer() = 0;
 };
 
 /*
@@ -70,15 +78,19 @@ gCommand = "G" integer ( g0RapidMove | g1LinearMove | g4Wait | g28RunHomingCycle
     g90AbsoluteDistanceMode | g91RelativeDistanceMode )
 mCommand = "M" integer ( m100MaxVelocityOverride | m101MaxAccelerationOverride |
     m102StepsPerUnitLengthOverride | m103HomingVelocityOverride)
-
-line = ( linearMove | feedrateOverride | gCommand | mCommand | "\n" )
+start = "~" "\n"
+stop = "!" "\n"
+clearCommandsBuffer = "^" "\n"
+printInfo = "?" "\n"
+line = ( start | stop | | clearCommandsBuffer | printInfo |
+    linearMove | feedrateOverride | gCommand | mCommand | "\n" )
 */
 template <size_t AxesSize>
 class GCodeParser {
     using Af = Axes<float, AxesSize>;
 
   public:
-    explicit GCodeParser(GCodeParserCallbacks<AxesSize> *cb)
+    explicit GCodeParser(IGCodeInterpreter<AxesSize> *cb)
         : errorPos_(std::numeric_limits<size_t>::max()), pos_(nullptr), str_(nullptr), cb_(cb) {
         scAssert(cb);
     }
@@ -362,12 +374,51 @@ class GCodeParser {
         }
     }
 
-    bool expectNewLine() {
-        if (!isNewLine()) {
-            error("expect new line");
+    bool start() {
+        if (!isStart()) {
             return false;
         }
         nextsym();
+        if (!expectNewLine()) {
+            return false;
+        }
+        cb_->start();
+        return true;
+    }
+
+    bool stop() {
+        if (!isStop()) {
+            return false;
+        }
+        nextsym();
+        if (!expectNewLine()) {
+            return false;
+        }
+        cb_->stop();
+        return true;
+    }
+
+    bool clearCommandsBuffer() {
+        if (!isClear()) {
+            return false;
+        }
+        nextsym();
+        if (!expectNewLine()) {
+            return false;
+        }
+        cb_->clearCommandsBuffer();
+        return true;
+    }
+
+    bool printInfo() {
+        if (!isInfo()) {
+            return false;
+        }
+        nextsym();
+        if (!expectNewLine()) {
+            return false;
+        }
+        cb_->printInfo();
         return true;
     }
 
@@ -384,7 +435,28 @@ class GCodeParser {
         if (feedrateOverride()) {
             return true;
         }
+        if (start()) {
+            return true;
+        }
+        if (stop()) {
+            return true;
+        }
+        if (clearCommandsBuffer()) {
+            return true;
+        }
+        if (printInfo()) {
+            return true;
+        }
         return expectNewLine();
+    }
+
+    inline bool expectNewLine() {
+        if (!isNewLine()) {
+            error("expect new line");
+            return false;
+        }
+        nextsym();
+        return true;
     }
 
     inline bool isGCommand() const { return toupper(sym()) == 'G'; }
@@ -404,6 +476,14 @@ class GCodeParser {
     inline bool isNewLine() const { return sym() == '\n'; }
 
     inline bool isSpace() const { return sym() == ' ' || sym() == '\t' || sym() == '\r'; }
+
+    inline bool isStart() const { return sym() == '~'; }
+
+    inline bool isStop() const { return sym() == '!'; }
+
+    inline bool isClear() const { return sym() == '^'; }
+
+    inline bool isInfo() const { return sym() == '?'; }
 
     inline void skipSpaces() {
         while (isSpace()) {
@@ -429,6 +509,6 @@ class GCodeParser {
     size_t errorPos_;
     const char *pos_;
     const char *str_;
-    GCodeParserCallbacks<AxesSize> *cb_;
+    IGCodeInterpreter<AxesSize> *cb_;
 };
 }

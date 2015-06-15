@@ -54,7 +54,7 @@ class CommandsExecutor {
             printf("\n");
         }
 
-        if (wasRunning_ && !executor_.running()) {
+        if (wasRunning_ && !executor_.isRunning()) {
             // Just stopped.
             // Try load next portion of segments to executor.
             if (nextCmd_ != cmds_.end()) {
@@ -72,7 +72,7 @@ class CommandsExecutor {
                 printf("\nCompleted\n");
             }
         }
-        wasRunning_ = executor_.running();
+        wasRunning_ = executor_.isRunning();
     }
 
   private:
@@ -82,45 +82,42 @@ class CommandsExecutor {
 
     void syncPosition() { interpreter_.setCurrentPosition(executor_.position()); }
 
+    void moveCommandToSegments() {
+        PathToTrajectoryConverter<AxesSize> trajGen;
+        trajGen.setMaxVelocity(nextCmd_->maxVelocity());
+        trajGen.setMaxAcceleration(nextCmd_->maxAcceleration());
+        trajGen.setPath(move(nextCmd_->path()));
+        trajGen.update();
+
+        TrajectoryToSegmentsConverter<AxesSize> segGen;
+        segGen.setPath(move(trajGen.path()));
+        segGen.setBlendDurations(move(trajGen.blendDurations()));
+        segGen.setDurations(move(trajGen.durations()));
+        segGen.update();
+
+        executor_.setSegments( move(segGen.segments()));
+    }
+
     void runNextCommand() {
         switch (nextCmd_->type()) {
         case Cmd::Move: {
-            PathToTrajectoryConverter<AxesSize> pathToTrajectory;
-            TrajectoryToSegmentsConverter<AxesSize> trajectoryToSegments;
-
-            pathToTrajectory.setMaxVelocity(nextCmd_->maxVelocity());
-            pathToTrajectory.setMaxAcceleration(nextCmd_->maxAcceleration());
-            pathToTrajectory.setPath(move(nextCmd_->path()));
-            pathToTrajectory.update();
-
-            trajectoryToSegments.setPath(move(pathToTrajectory.path()));
-            trajectoryToSegments.setBlendDurations(move(pathToTrajectory.blendDurations()));
-            trajectoryToSegments.setDurations(move(pathToTrajectory.durations()));
-            trajectoryToSegments.update();
-
-            executor_.setSegments(move(trajectoryToSegments.segments()));
-            executor_.start();
+            moveCommandToSegments();
             break;
         }
         case Cmd::Homing: {
-            auto dt = std::numeric_limits<int32_t>::max();
-            auto vInv = 1.f / nextCmd_->homingVelocity();
-            auto dx = -dt / axCast<int32_t>(vInv);
-
-            executor_.setSegments({Seg(dt, dx)});
-            executor_.startHoming();
+            executor_.setSegments({Seg(nextCmd_->homingVelocity())});
             break;
         }
         case Cmd::Wait: {
-            executor_.setSegments({Seg(nextCmd_->waitDuration(), axZero<Ai>())});
-            executor_.start();
+            executor_.setSegments({Seg(nextCmd_->waitDuration())});
             break;
         }
         default:
             scAssert(!"Unexpected command type.");
-            break;
+            return;
         }
 
+        executor_.start();
         ++nextCmd_;
     }
 

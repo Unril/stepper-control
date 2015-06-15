@@ -9,7 +9,7 @@ using namespace std;
 namespace {
 template <size_t AxesSize>
 struct MotorMock {
-    MotorMock() : dir(axZero<Ai>()), current{axZero<Ai>(), axZero<Ai>()} {}
+    MotorMock() : isHit(axZero<Ai>()), dir(axZero<Ai>()), current{axZero<Ai>(), axZero<Ai>()} {}
 
     using Ai = Axes<int32_t, AxesSize>;
 
@@ -45,6 +45,9 @@ struct MotorMock {
 
     void setPosition(Ai const &position) { current.x = position; }
 
+    bool checkEndSwitchHit(size_t i) const { return isHit[i] != 0; }
+
+    Ai isHit;
     Ai dir;
     Step current;
     vector<Step> data;
@@ -58,6 +61,8 @@ struct TickerMock {
 
 template <size_t AxesSize>
 struct SegmentsExecutorTestBase : Test {
+    using Ai = Axes<int32_t, AxesSize>;
+    using Af = Axes<float, AxesSize>;
     using Sg = Segment<AxesSize>;
     using Mm = MotorMock<AxesSize>;
     using Steps = vector<typename Mm::Step>;
@@ -72,7 +77,7 @@ struct SegmentsExecutorTestBase : Test {
     void process() {
         executor.setSegments(segments);
         executor.start();
-        while (executor.running()) {
+        while (executor.isRunning()) {
             executor.tick();
         }
     }
@@ -423,6 +428,46 @@ TEST_F(SegmentsExecutor1_Should, execute_two_linear_segments_with_parabolic_blen
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
 
+TEST_F(SegmentsExecutor1_Should, do_homing_and_other_commands) {
+    segments.push_back(Sg(6, {3}));
+    segments.push_back(Sg(Af{0.5f}));
+    segments.push_back(Sg(6, {3}));
+    executor.setSegments(segments);
+    executor.start();
+
+    while (executor.isRunning()) {
+        executor.tick();
+        if (motor.current.x[0] == 0) {
+            motor.isHit[0] = 1;
+        }
+    }
+
+    Steps expected{
+        {{1}, {1}},
+        {{1}, {0}},
+        {{2}, {1}},
+        {{2}, {0}},
+        {{3}, {1}},
+        {{3}, {0}},
+
+        {{3}, {0}},
+        {{2}, {-1}},
+        {{2}, {0}},
+        {{1}, {-1}},
+        {{1}, {0}},
+        {{0}, {-1}},
+        {{0}, {0}},
+
+        {{1}, {1}},
+        {{1}, {0}},
+        {{2}, {1}},
+        {{2}, {0}},
+        {{3}, {1}},
+        {{3}, {0}},
+    };
+    EXPECT_THAT(motor.data, ContainerEq(expected));
+}
+
 struct SegmentsExecutor2_Should : SegmentsExecutorTestBase<2> {};
 
 TEST_F(SegmentsExecutor2_Should, execute_one_linear_segment) {
@@ -444,5 +489,58 @@ TEST_F(SegmentsExecutor2_Should, execute_one_linear_segment) {
         {{5, 0}, {0, 0}}, // 10
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
+}
+
+TEST_F(SegmentsExecutor2_Should, wait) {
+    segments.push_back(Sg(10));
+
+    process();
+
+    EXPECT_THAT(motor.data, SizeIs(10));
+    EXPECT_THAT(motor.data, Each(Eq(Mm::Step({0, 0}, {0, 0}))));
+}
+
+TEST_F(SegmentsExecutor2_Should, handle_zero_ticks_wait) {
+    segments.push_back(Sg(0));
+
+    process();
+
+    EXPECT_THAT(motor.data, SizeIs(0));
+}
+
+TEST_F(SegmentsExecutor2_Should, do_homing) {
+    segments.push_back(Sg({0.5f, 0.2f}));
+    executor.setPosition({10, 20});
+    executor.setSegments(segments);
+    executor.start();
+
+    while (executor.isRunning()) {
+        executor.tick();
+        if (motor.current.x[0] == -5) {
+            motor.isHit[0] = 1;
+        }
+        if (motor.current.x[1] == -3) {
+            motor.isHit[1] = 1;
+        }
+    }
+
+    Steps expected{
+        {{0, 0}, {0, 0}},
+        {{-1, 0}, {-1, 0}},
+        {{-1, -1}, {0, -1}},
+        {{-2, -1}, {-1, 0}},
+        {{-2, -1}, {0, 0}},
+        {{-3, -1}, {-1, 0}},
+        {{-3, -1}, {0, 0}},
+        {{-4, -2}, {-1, -1}},
+        {{-4, -2}, {0, 0}},
+        {{-5, -2}, {-1, 0}},
+        {{-5, -2}, {0, 0}},
+        {{-5, -2}, {0, 0}},
+        {{-5, -3}, {0, -1}},
+        {{-5, -3}, {0, 0}},
+    };
+    EXPECT_THAT(motor.data, ContainerEq(expected));
+    EXPECT_THAT(executor.position(), Eq(Ai{0, 0}));
 }
 }

@@ -7,16 +7,39 @@ namespace StepperControl {
 const int32_t int32Max = std::numeric_limits<int32_t>::max();
 const int64_t int64Max = std::numeric_limits<int64_t>::max();
 
-template <typename T>
-inline T maxVal(T) {
-    return std::numeric_limits<T>::max();
-}
-
 // Contains data for Bresenham's algorithm.
 template <size_t AxesSize>
 struct Segment {
     using Ai = Axes<int32_t, AxesSize>;
     using Al = Axes<int64_t, AxesSize>;
+
+    // Homing segment.
+    // Linear motion for max time at constant homing velocity.
+    // Duration is set to negative number to determine this type of segment.
+    Segment(Axes<float, AxesSize> const &homingVelocity) {
+        auto dtL = static_cast<int64_t>(int32Max);
+        auto dx = dtL / axCast<int64_t>(-1.f / homingVelocity);
+
+        // dx <= dt/2
+        scAssert(all(le(axAbs(dx) * 2, axConst<Al>(dtL))));
+
+        dt = -1;
+        denominator = 2 * dtL;
+        velocity = 2 * dx;
+        acceleration.fill(0);
+        error.fill(0);
+    }
+
+    // Wait segment.
+    // dt - wait duration in ticks.
+    Segment(int32_t dt) : dt(dt) {
+        scAssert(dt >= 0);
+
+        denominator = 1;
+        velocity.fill(0);
+        acceleration.fill(0);
+        error.fill(0);
+    }
 
     /* Linear segment.
        It is set by start and end points p0-p1.
@@ -33,7 +56,6 @@ struct Segment {
         auto dtL = static_cast<int64_t>(dt);
 
         // Overwflow check.
-        scAssert(dtL <= int64Max / 2);
         scAssert(all(le(axCast<int64_t>(axAbs(dx)), axConst<Al>(int64Max / 2))));
 
         scAssert(dt > 0);
