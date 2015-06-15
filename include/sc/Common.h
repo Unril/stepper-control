@@ -51,5 +51,14 @@ struct Clamp {
 };
 
 template <size_t i>
-struct UIntConst{};
+struct UIntConst {};
+
+template <typename T>
+inline void printNumber(T num) {
+    if (std::is_integral<T>::value) {
+        printf("%ld", static_cast<long>(num));
+    } else if (std::is_floating_point<T>::value) {
+        printf("%f", static_cast<float>(num));
+    }
+}
 }

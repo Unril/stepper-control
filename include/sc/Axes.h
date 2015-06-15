@@ -399,20 +399,14 @@ inline void copyOnlyFinite(Axes<T, Size> const &src, Axes<T, Size> &dest) {
     }
 }
 
-template <size_t Size>
-inline void axPrintln(Axes<float, Size> const &a) {
-    for (size_t i = 0; i < Size - 1; ++i) {
-        printf("%f, ", a[i]);
+template <typename T, size_t Size>
+inline void axPrintf(Axes<T, Size> const &a) {
+    for (size_t i = 0; i < Size; ++i) {
+        printNumber(a[i]);
+        if (i != Size - 1) {
+            printf(", ");
+        }
     }
-    printf("%f\n", a[Size - 1]);
-}
-
-template <size_t Size>
-inline void axPrintln(Axes<int32_t, Size> const &a) {
-    for (size_t i = 0; i < Size - 1; ++i) {
-        printf("%d, ", a[i]);
-    }
-    printf("%d\n", a[Size - 1]);
 }
 }
 

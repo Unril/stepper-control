@@ -20,12 +20,14 @@ class CommandsExecutor {
     CommandsExecutor(int32_t ticksPerSecond, TMotor *motor, TTicker *ticker)
         : parser_(&interpreter_), executor_(motor, ticker) {
         wasRunning_ = false;
-        positionNotifyInterval_ = ticksPerSecond / 5;
-        positionNotifyTick_ = positionNotifyInterval_;
+        notifyInterval_ = ticksPerSecond / 5;
+        nextNotifyTick_ = notifyInterval_;
         nextCmd_ = cmds_.end();
         interpreter_.setTicksPerSecond(ticksPerSecond);
         executor_.setTicksPerSecond(ticksPerSecond);
     }
+
+    GCodeInterpreter<AxesSize> &interpreter() { return interpreter_; }
 
     void executeLine(char const *line) {
         scAssert(line);
@@ -45,9 +47,11 @@ class CommandsExecutor {
 
     // Should be called in a loop.
     void update() {
-        if (executor_.ticks() > positionNotifyTick_) {
-            positionNotifyTick_ += positionNotifyInterval_;
-            axPrintln(currentPositionInUnits());
+        auto ticks = executor_.ticks();
+        if (ticks > nextNotifyTick_) {
+            nextNotifyTick_ = ticks + notifyInterval_;
+            axPrintf(currentPositionInUnits());
+            printf("\n");
         }
 
         if (wasRunning_ && !executor_.running()) {
@@ -56,7 +60,7 @@ class CommandsExecutor {
             if (nextCmd_ != cmds_.end()) {
                 runNextCommand();
             } else {
-                positionNotifyTick_ = positionNotifyInterval_;
+                nextNotifyTick_ = notifyInterval_;
 
                 // No more commands.
                 cmds_.clear();
@@ -64,8 +68,8 @@ class CommandsExecutor {
                 syncPosition();
 
                 // Report completed.
-                axPrintln(currentPositionInUnits());
-                printf("Completed\n");
+                axPrintf(currentPositionInUnits());
+                printf("\nCompleted\n");
             }
         }
         wasRunning_ = executor_.running();
@@ -81,17 +85,20 @@ class CommandsExecutor {
     void runNextCommand() {
         switch (nextCmd_->type()) {
         case Cmd::Move: {
-            pathToTrajectory_.setMaxVelocity(nextCmd_->maxVelocity());
-            pathToTrajectory_.setMaxAcceleration(nextCmd_->maxAcceleration());
-            pathToTrajectory_.setPath(move(nextCmd_->path()));
-            pathToTrajectory_.update();
+            PathToTrajectoryConverter<AxesSize> pathToTrajectory;
+            TrajectoryToSegmentsConverter<AxesSize> trajectoryToSegments;
 
-            trajectoryToSegments_.setPath(move(pathToTrajectory_.path()));
-            trajectoryToSegments_.setBlendDurations(move(pathToTrajectory_.blendDurations()));
-            trajectoryToSegments_.setDurations(move(pathToTrajectory_.durations()));
-            trajectoryToSegments_.update();
+            pathToTrajectory.setMaxVelocity(nextCmd_->maxVelocity());
+            pathToTrajectory.setMaxAcceleration(nextCmd_->maxAcceleration());
+            pathToTrajectory.setPath(move(nextCmd_->path()));
+            pathToTrajectory.update();
 
-            executor_.setSegments(move(trajectoryToSegments_.segments()));
+            trajectoryToSegments.setPath(move(pathToTrajectory.path()));
+            trajectoryToSegments.setBlendDurations(move(pathToTrajectory.blendDurations()));
+            trajectoryToSegments.setDurations(move(pathToTrajectory.durations()));
+            trajectoryToSegments.update();
+
+            executor_.setSegments(move(trajectoryToSegments.segments()));
             executor_.start();
             break;
         }
@@ -140,19 +147,21 @@ class CommandsExecutor {
         interpreter_.clearCommands();
     }
 
-    void printInfo() {}
+    void printInfo() const {
+        executor_.printInfo();
+        interpreter_.printInfo();
+    }
 
     void parse(char const *line) { parser_.parseLine(line); }
 
     bool wasRunning_;
-    int32_t positionNotifyInterval_;
-    int32_t positionNotifyTick_;
+    int32_t notifyInterval_;
+    int32_t nextNotifyTick_;
     typename std::vector<Cmd>::iterator nextCmd_;
     std::vector<Cmd> cmds_;
+
     GCodeInterpreter<AxesSize> interpreter_;
     GCodeParser<AxesSize> parser_;
-    PathToTrajectoryConverter<AxesSize> pathToTrajectory_;
-    TrajectoryToSegmentsConverter<AxesSize> trajectoryToSegments_;
     SegmentsExecutor<AxesSize, TMotor, TTicker> executor_;
 };
 }

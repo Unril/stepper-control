@@ -40,7 +40,8 @@ struct MotorMock {
         current.x[i] += current.step[i];
     }
 
-    void update() { data.emplace_back(current); }
+    static void begin() {}
+    void end() { data.emplace_back(current); }
 
     void setPosition(Ai const &position) { current.x = position; }
 

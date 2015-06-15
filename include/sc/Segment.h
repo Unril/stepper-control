@@ -4,10 +4,19 @@
 
 namespace StepperControl {
 
+const int32_t int32Max = std::numeric_limits<int32_t>::max();
+const int64_t int64Max = std::numeric_limits<int64_t>::max();
+
+template <typename T>
+inline T maxVal(T) {
+    return std::numeric_limits<T>::max();
+}
+
 // Contains data for Bresenham's algorithm.
 template <size_t AxesSize>
 struct Segment {
     using Ai = Axes<int32_t, AxesSize>;
+    using Al = Axes<int64_t, AxesSize>;
 
     /* Linear segment.
        It is set by start and end points p0-p1.
@@ -21,13 +30,19 @@ struct Segment {
        t0        t1
     */
     Segment(int32_t dt, Ai const &dx) : dt(dt) {
+        auto dtL = static_cast<int64_t>(dt);
+
+        // Overwflow check.
+        scAssert(dtL <= int64Max / 2);
+        scAssert(all(le(axCast<int64_t>(axAbs(dx)), axConst<Al>(int64Max / 2))));
+
         scAssert(dt > 0);
         // dx <= dt/2
         scAssert(all(le(axAbs(dx) * 2, axConst<Ai>(dt))));
 
-        denominator = 2 * dt;
-        velocity = 2 * dx;
-        halfAcceleration.fill(0);
+        denominator = 2 * dtL;
+        velocity = 2 * axCast<int64_t>(dx);
+        acceleration.fill(0);
         error.fill(0);
     }
 
@@ -43,20 +58,33 @@ struct Segment {
        t0   t1    t2
     */
     Segment(int32_t twiceDt, Ai const &dx1, Ai const &dx2) : dt(twiceDt) {
+        auto twiceDtL = static_cast<int64_t>(twiceDt);
+        auto halfA = (dx2 - dx1);
+
+        // Overwflow check.
+        scAssert(twiceDtL <= int64Max / twiceDtL);
+        scAssert(all(le(axCast<int64_t>(axAbs(dx1)), axConst<Al>(int64Max / (2 * twiceDtL)))));
+        scAssert(all(le(axCast<int64_t>(axAbs(dx2)), axConst<Al>(int64Max / (2 * twiceDtL)))));
+        scAssert(all(le(axAbs(halfA), axConst<Ai>(int32Max / 2))));
+
         scAssert(twiceDt > 0);
         // dx1 <= dt1/2 && dx2 <= dt2/2
         scAssert(all(le(axAbs(dx1) * 4, axConst<Ai>(twiceDt))));
         scAssert(all(le(axAbs(dx2) * 4, axConst<Ai>(twiceDt))));
 
-        denominator = twiceDt * twiceDt;
-        velocity = 2 * dx1 * twiceDt;
-        halfAcceleration = dx2 - dx1;
+        denominator = twiceDtL * twiceDtL;
+        velocity = 2 * twiceDtL * axCast<int64_t>(dx1);
+        acceleration = 2 * halfA;
         error.fill(0);
+
+        // First half step integration to make area under the velocity profile equal it's real
+        // value at the end of integraion.
+        velocity += axCast<int64_t>(halfA);
     }
 
     friend bool operator==(Segment const &lhs, Segment const &rhs) {
         return lhs.dt == rhs.dt && lhs.denominator == rhs.denominator &&
-               lhs.velocity == rhs.velocity && lhs.halfAcceleration == rhs.halfAcceleration &&
+               lhs.velocity == rhs.velocity && lhs.acceleration == rhs.acceleration &&
                lhs.error == rhs.error;
     }
 
@@ -65,11 +93,14 @@ struct Segment {
     friend std::ostream &operator<<(std::ostream &os, Segment const &obj) {
         return os << std::endl
                   << "dt: " << obj.dt << " denominator: " << obj.denominator
-                  << " velocity: " << obj.velocity << " halfAcceleration: " << obj.halfAcceleration
+                  << " velocity: " << obj.velocity << " halfAcceleration: " << obj.acceleration
                   << " error: " << obj.error;
     }
 
-    int32_t dt, denominator;
-    Ai velocity, halfAcceleration, error;
+    int32_t dt;
+    Ai acceleration;
+    Al velocity;
+    int64_t denominator;
+    Al error;
 };
 }

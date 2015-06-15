@@ -33,7 +33,8 @@ struct MotorMock {
         current[i] += (edge ? dir[i] : 0);
     }
 
-    void update() { data.emplace_back(current); }
+    static void begin() { }
+    void end() { data.emplace_back(current); }
 
     void setPosition(Ai const &position) { current = position; }
 
@@ -53,7 +54,6 @@ struct TickerMock {
 };
 
 struct Integration_Should : Test {
-    Integration_Should() : parser(&interpreter), executor(&mm, &tm) {}
 
     GCodeInterpreter<AxesSize> interpreter;
     GCodeParser<AxesSize> parser;
@@ -62,6 +62,12 @@ struct Integration_Should : Test {
     MotorMock mm;
     TickerMock tm;
     SegmentsExecutor<AxesSize, MotorMock, TickerMock> executor;
+
+    Integration_Should() : parser(&interpreter), executor(&mm, &tm) {
+        auto ticksPerSecond = 100000;
+        interpreter.setTicksPerSecond(ticksPerSecond);
+        executor.setTicksPerSecond(ticksPerSecond);
+    }
 
     void update() {
         auto cmd = interpreter.commands().back();
@@ -84,12 +90,12 @@ struct Integration_Should : Test {
 };
 
 TEST_F(Integration_Should, create_an_execute_trajectory_from_random_path_points) {
-   // interpreter.m100MaxVelocityOverride({0.5f, 0.1f});
-    //interpreter.m101MaxAccelerationOverride({0.1f, 0.002f});
+   interpreter.m100MaxVelocityOverride(axConst<Af>(30.f));
+   interpreter.m101MaxAccelerationOverride(axConst<Af>(100.f));
 
-    for (int i = 0; i < 20; ++i) {
+    for (int i = 0; i < 2; ++i) {
         stringstream ss;
-        ss << "A" << (rand() % 100 - 50) << "B" << (rand() % 60 - 30) << endl;
+        ss << "A" << rand() % 50 << "B" << rand() % 10 << endl;
         parser.parseLine(ss.str().c_str());
     }
     parser.parseLine("A0B0\n");

@@ -107,7 +107,8 @@ public:
 
     inline FastInOut& operator= (FastInOut& rhs)
     {
-        return write(rhs.read());
+		write(rhs.read());
+        return *this;
     };
 
     inline operator int()
@@ -153,7 +154,8 @@ public:
 
     inline FastOut& operator= (FastOut& rhs)
     {
-        return this->write(rhs.read());
+		write(rhs.read());
+        return *this;
     };
 
     inline operator int()
@@ -196,7 +198,8 @@ public:
 
     inline FastIn& operator= (FastIn& rhs)
     {
-        return this->write(rhs.read());
+		write(rhs.read());
+        return *this;
     };
 
     inline operator int()

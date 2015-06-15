@@ -5,7 +5,7 @@
 
 namespace StepperControl {
 
-// Intepreter reacts to callbacks from parser and creates commands from them.
+// Interpreter reacts to callbacks from parser and creates commands from them.
 template <size_t AxesSize>
 class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
   public:
@@ -20,7 +20,7 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
 
     void feedrateOverride(float feed) override {}
 
-    // Max velocity and acceleration should be set befor this call.
+    // Max velocity and acceleration should be set before this call.
     void linearMove(Af const &positionInUnits, float feed) override {
         // If it is first move command in commands list.
         if (cmds_.empty() || cmds_.back().type() != Cmd::Move) {
@@ -52,12 +52,12 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
         cmds_.push_back(Cmd(ticks));
     }
 
-    // Homing velocity should be set befor this call.
+    // Homing velocity should be set before this call.
     void g28RunHomingCycle() override { cmds_.push_back(Cmd(homingVel_)); }
 
     void g90g91DistanceMode(DistanceMode mode) override { mode_ = mode; }
 
-    // Ticks per second and steps per unit lenght should be set before this call.
+    // Ticks per second and steps per unit length should be set before this call.
     void m100MaxVelocityOverride(Af const &unitsPerSec) override {
         auto stepsPerTick = unitsPerSec * stepPerUnit_ / static_cast<float>(ticksPerSec_);
         copyOnlyFinite(stepsPerTick, maxVel_);
@@ -65,21 +65,21 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
         applyInplace(maxVel_, Clamp<float>(0, 0.5f));
     }
 
-    // Ticks per second and steps per unit lenght should be set before this call.
+    // Ticks per second and steps per unit length should be set before this call.
     void m101MaxAccelerationOverride(Af const &unitsPerSecSqr) override {
         auto stepsPerTickSqr =
-            unitsPerSecSqr * stepPerUnit_ / static_cast<float>(ticksPerSec_ * ticksPerSec_);
+            unitsPerSecSqr * stepPerUnit_ / (static_cast<float>(ticksPerSec_) * ticksPerSec_);
         copyOnlyFinite(stepsPerTickSqr, maxAcc_);
         scAssert(all(gt(maxAcc_, axZero<Af>())));
     }
 
-    // Steps per unit lenght should be set before this call.
+    // Steps per unit length should be set before this call.
     void m102StepsPerUnitLengthOverride(Af const &stepsPerUnit) override {
         copyOnlyFinite(stepsPerUnit, stepPerUnit_);
         scAssert(all(gt(stepPerUnit_, axZero<Af>())));
     }
 
-    // Ticks per second and steps per unit lenght should be set before this call.
+    // Ticks per second and steps per unit length should be set before this call.
     void m103HomingVelocityOverride(Af const &unitsPerSec) override {
         auto stepsPerTick = unitsPerSec * stepPerUnit_ / static_cast<float>(ticksPerSec_);
         copyOnlyFinite(stepsPerTick, homingVel_);
@@ -88,7 +88,7 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
     }
 
     void error(size_t pos, const char *line, const char *reason) override {
-        printf("Error: %s at %d in %s", reason, static_cast<int>(pos), line);
+        printf("Error: %s at %d in %s\n", reason, static_cast<int>(pos), line);
     }
 
     void setTicksPerSecond(int32_t tps) {
@@ -117,6 +117,15 @@ class GCodeInterpreter : public GCodeParserCallbacks<AxesSize> {
     void clearCommands() { cmds_.clear(); }
 
     bool hasCommands() const { return !cmds_.empty(); }
+
+    void printInfo() const {
+        printf("Ticks per second: %ld", static_cast<long>(ticksPerSec_));
+        printf("\nCommands (%ld): ", static_cast<long>(cmds_.size()));
+        for (auto &cmd : cmds_) {
+            cmd.printInfo();
+        }
+        printf("\n");
+    }
 
   private:
     std::vector<Cmd> cmds_;

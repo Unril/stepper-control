@@ -3,6 +3,7 @@
 #include "Axes.h"
 
 #include <vector>
+#include <ostream>
 
 namespace StepperControl {
 // Represents gcode program instruction.
@@ -89,6 +90,33 @@ struct Command {
     inline int32_t waitDuration() const {
         scAssert(type() == Wait);
         return u.waitDuration_;
+    }
+
+    void printInfo() const {
+        switch (type()) {
+        case Move:
+            printf("  Type: Move\n  MaxVel: ");
+            axPrintf(maxVelocity());
+            printf("\n  MaxAcc: ");
+            axPrintf(maxAcceleration());
+            printf("\n  Path:");
+            for (auto &p : path()) {
+                printf("\n    ");
+                axPrintf(p);
+            }
+            break;
+        case Wait:
+            printf("  Type: Wait\n  Duration: %ld", static_cast<long>(waitDuration()));
+            break;
+        case Homing:
+            printf("  Type: Homing\n  Vel: ");
+            axPrintf(homingVelocity());
+            break;
+        default:
+            scAssert(!"Unexpected type.");
+            break;
+        }
+        printf("\n");
     }
 
   private:

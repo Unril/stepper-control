@@ -101,6 +101,16 @@
 				</Linker>
 			</Target>
 		</Build>
+		<Unit filename="..\include\sc\Axes.h" />
+		<Unit filename="..\include\sc\Command.h" />
+		<Unit filename="..\include\sc\CommandsExecutor.h" />
+		<Unit filename="..\include\sc\Common.h" />
+		<Unit filename="..\include\sc\GCodeInterpreter.h" />
+		<Unit filename="..\include\sc\GCodeParser.h" />
+		<Unit filename="..\include\sc\PathToTrajectoryConverter.h" />
+		<Unit filename="..\include\sc\Segment.h" />
+		<Unit filename="..\include\sc\SegmentsExecutor.h" />
+		<Unit filename="..\include\sc\TrajectoryToSegmentsConverter.h" />
 		<Unit filename="FastIO.h" />
 		<Unit filename="main.cpp">
 			<Option compilerVar="CC" />
