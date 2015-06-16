@@ -123,10 +123,10 @@ TEST_F(GCodeParser_Should, parse_g28RunHomingCycle) {
 }
 
 TEST_F(GCodeParser_Should, parse_g90g91DistanceMode) {
-    EXPECT_CALL(cb_, g90g91DistanceMode(Eq(Absolute)));
+    EXPECT_CALL(cb_, g90g91DistanceMode(Eq(DistanceMode::Absolute)));
     parse("G90\n");
 
-    EXPECT_CALL(cb_, g90g91DistanceMode(Eq(Relative)));
+    EXPECT_CALL(cb_, g90g91DistanceMode(Eq(DistanceMode::Relative)));
     parse("G91\n");
 }
 

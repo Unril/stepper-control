@@ -12,7 +12,8 @@ class TrajectoryToSegmentsConverter {
   public:
     using Af = Axes<float, AxesSize>;
     using Ai = Axes<int32_t, AxesSize>;
-    using Segments = std::vector<Segment<AxesSize>>;
+    using Sg = Segment<AxesSize>;
+    using Segments = std::vector<Sg>;
 
     void setPath(std::vector<Ai> const &path) { path_ = path; }
 
@@ -26,7 +27,7 @@ class TrajectoryToSegmentsConverter {
 
     void setBlendDurations(std::vector<float> &&blendDurations) { tbs_ = move(blendDurations); }
 
-    void update() {
+    void update(Segments& segments) {
         scAssert(!path_.empty());
         scAssert(path_.size() - 1 == Dts_.size());
         scAssert(path_.size() == tbs_.size());
@@ -34,18 +35,13 @@ class TrajectoryToSegmentsConverter {
         std::transform(Dts_.begin(), Dts_.end(), Dts_.begin(), &ceilf);
         std::transform(tbs_.begin(), tbs_.end(), tbs_.begin(), &ceilf);
 
-        segments_.clear();
         for (size_t i = 0; i < path_.size(); i++) {
-            addSegmentsForPoint(i);
+            addSegmentsForPoint(i, segments);
         }
     }
 
-    Segments const &segments() const { return segments_; }
-
-    Segments &segments() { return segments_; }
-
   private:
-    void addSegmentsForPoint(size_t i) {
+    void addSegmentsForPoint(size_t i, Segments& segments) {
         auto firstPoint = i == 0;
         auto lastPoint = (i == path_.size() - 1);
 
@@ -88,7 +84,7 @@ class TrajectoryToSegmentsConverter {
                 }
             }
 
-            segments_.emplace_back(static_cast<int32_t>(tBlendCorrected), Dx, DxNext);
+            segments.emplace_back(static_cast<int32_t>(tBlendCorrected), Dx, DxNext);
         }
 
         // Where is no linear segments after last point.
@@ -120,13 +116,12 @@ class TrajectoryToSegmentsConverter {
                     tLineTrunc = DxAbsX2;
                 }
             }
-            segments_.emplace_back(tLineTrunc, DxLine);
+            segments.emplace_back(tLineTrunc, DxLine);
         }
     }
 
     std::vector<Ai> path_;
     std::vector<float> Dts_;
     std::vector<float> tbs_;
-    Segments segments_;
 };
 }

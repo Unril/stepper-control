@@ -468,6 +468,20 @@ TEST_F(SegmentsExecutor1_Should, do_homing_and_other_commands) {
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
 
+TEST_F(SegmentsExecutor1_Should, callback_on_stopped) {
+    bool stopped = false;
+    auto func = [](void *obj) { *static_cast<bool *>(obj) = true; };
+    executor.setOnStopped(func, &stopped);
+    segments.push_back(Sg(6, {3}));
+    process();
+
+    Steps expected{
+        {{1}, {1}}, {{1}, {0}}, {{2}, {1}}, {{2}, {0}}, {{3}, {1}}, {{3}, {0}},
+    };
+    EXPECT_THAT(motor.data, ContainerEq(expected));
+    EXPECT_THAT(stopped, Eq(true));
+}
+
 struct SegmentsExecutor2_Should : SegmentsExecutorTestBase<2> {};
 
 TEST_F(SegmentsExecutor2_Should, execute_one_linear_segment) {

@@ -1,48 +1,50 @@
 #pragma once
 
-#include "Segment.h"
+#include "Interfaces.h"
 
 namespace StepperControl {
-
-enum class ExecutorState : uint8_t {
-
-};
 
 // Starts timer and generates steps using provided linear or parabolic segments.
 // Uses modified Bresenham's line drawing algorithm.
 template <size_t AxesSize, typename TMotor, typename TTicker>
-class SegmentsExecutor {
+class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
   public:
     using Sg = Segment<AxesSize>;
     using Segments = std::vector<Sg>;
     using Ai = Axes<int32_t, AxesSize>;
+    using OnStoppedFunc = void (*)(void *);
 
     SegmentsExecutor(TMotor *motor, TTicker *ticker)
-        : motor_(motor), ticker_(ticker), position_(axZero<Ai>()), ticksPerSecond_(1) {
+        : motor_(motor), ticker_(ticker), position_(axZero<Ai>()), ticksPerSecond_(1),
+          onStopped_(nullptr, nullptr) {
         scAssert(motor_ && ticker_);
         it_ = segments_.end();
     }
 
-    inline int32_t ticksPerSecond() const { return ticksPerSecond_; }
+    int32_t ticksPerSecond() const { return ticksPerSecond_; }
 
-    void setTicksPerSecond(int32_t ticksPerSecond) {
+    void setTicksPerSecond(int32_t ticksPerSecond) override {
         scAssert(ticksPerSecond > 0);
         ticksPerSecond_ = ticksPerSecond;
     }
 
-    void setSegments(Segments const &segments) {
+    void setSegments(Segments const &segments) override {
         segments_ = segments;
         it_ = segments_.end();
     }
 
-    void setSegments(Segments &&segments) {
+    void setSegments(Segments &&segments) override {
         segments_ = move(segments);
         it_ = segments_.end();
     }
 
     Segments const &segments() const { return segments_; }
 
-    void start() {
+    void setOnStopped(OnStoppedFunc func, void *payload) {
+        onStopped_ = std::make_pair(func, payload);
+    }
+
+    void start() override {
         if (segments_.empty()) {
             return;
         }
@@ -51,7 +53,7 @@ class SegmentsExecutor {
         ticker_->attach_us(this, &SegmentsExecutor::tick, 1000000 / ticksPerSecond_);
     }
 
-    inline void tick() {
+    void tick() {
         auto const dt = it_->dt;
         if (dt > 0) {
             // Integrate next interval.
@@ -84,13 +86,19 @@ class SegmentsExecutor {
         }
     }
 
-    inline bool isRunning() const { return it_ != segments_.end(); }
+    bool isRunning() const override { return it_ != segments_.end(); }
 
-    inline void stop() { ticker_->detach(); }
+    void stop() override {
+        ticker_->detach();
+        it_ = segments_.end();
+        if (onStopped_.first) {
+            onStopped_.first(onStopped_.second);
+        }
+    }
 
-    inline Ai const &position() const { return position_; }
+    Ai const &position() const override { return position_; }
 
-    inline void setPosition(Ai const &position) { position_ = position; }
+    void setPosition(Ai const &position) override { position_ = position; }
 
   private:
     FORCE_INLINE void tick0() {
@@ -179,5 +187,6 @@ class SegmentsExecutor {
     TTicker *ticker_;
     Ai position_;
     int32_t ticksPerSecond_;
+    std::pair<OnStoppedFunc, void *> onStopped_;
 };
 }

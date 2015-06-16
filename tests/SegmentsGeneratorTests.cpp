@@ -16,14 +16,14 @@ using Ai = Axes<int32_t, AxesSize>;
 struct TrajectoryToSegmentsConverter_Should : Test {
     using SegGen = TrajectoryToSegmentsConverter<AxesSize>;
     using Sg = Segment<AxesSize>;
-    SegGen::Segments segments;
+    vector<Sg> segments;
     vector<Ai> path;
     SegGen gen;
 
     void update() {
         gen.setPath(path);
-        gen.update();
-        segments = gen.segments();
+        segments.clear();
+        gen.update(segments);
     }
 };
 

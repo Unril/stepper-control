@@ -10,19 +10,26 @@ const size_t AxesSize = 2;
 
 using Af = Axes<float, AxesSize>;
 using Ai = Axes<int32_t, AxesSize>;
-using Cmd = Command<AxesSize>;
 
 struct SegmentsExecutorMock : ISegmentsExecutor<AxesSize> {
-    void start() {}
-    void stop() {}
-    bool isRunning() { return false; }
-    bool getStoppedAndReset() { return false; }
-    Ai const &position() {
-        static Ai p;
-        return p;
-    }
-    void setSegments(Segments const &segments) {}
-    void setSegments(Segments &&segments) {}
+    void setTicksPerSecond(int32_t) override {}
+
+    void start() override {}
+
+    void stop() override {}
+
+    bool isRunning() const override { return false; }
+
+    Ai const &position() const override { return pos; }
+
+    void setPosition(Ai const &p) override { pos = p; }
+
+    void setSegments(Segments const &s) override { seg = s; }
+
+    void setSegments(Segments &&s) override { seg = s; }
+
+    Ai pos = axZero<Ai>();
+    Segments seg;
 };
 
 struct GCodeInterpreter_Should : Test {
@@ -32,12 +39,18 @@ struct GCodeInterpreter_Should : Test {
 
     GCodeInterpreter_Should() : interp(&se) {}
 
-    std::vector<Ai> path() { return interp.commands().back().path(); }
+    std::vector<Ai> path() { return interp.path(); }
 };
 
 TEST_F(GCodeInterpreter_Should, add_one_linear_move_waypoint) {
     interp.linearMove(Af{200, 100}, inf());
     EXPECT_THAT(path(), ElementsAre(Ai{0, 0}, Ai{200, 100}));
+}
+
+TEST_F(GCodeInterpreter_Should, add_one_linear_move_from_different_start_position) {
+    se.setPosition({10, 10});
+    interp.linearMove(Af{200, 100}, inf());
+    EXPECT_THAT(path(), ElementsAre(Ai{10, 10}, Ai{200, 100}));
 }
 
 TEST_F(GCodeInterpreter_Should, add_only_valid_coordinates) {
@@ -106,7 +119,7 @@ TEST_F(GCodeInterpreter_Should, override_only_valid_max_velocities) {
 }
 
 TEST_F(GCodeInterpreter_Should, add_relative_positions) {
-    interp.g90g91DistanceMode(Relative);
+    interp.g90g91DistanceMode(DistanceMode::Relative);
     interp.linearMove(Af{10, 100}, inf());
     interp.linearMove(Af{20, inf()}, inf());
     interp.linearMove(Af{inf(), 200}, inf());
@@ -126,62 +139,47 @@ TEST_F(GCodeInterpreter_Should, trim_max_velocity_to_one_half) {
 TEST_F(GCodeInterpreter_Should, home_and_move) {
     interp.setTicksPerSecond(10);
     interp.m103HomingVelocityOverride({1.f, 2.f});
-    interp.m100MaxVelocityOverride(Af{2.f, 4.f});
-    interp.m101MaxAccelerationOverride(Af{2.f, 2.f});
-    interp.setCurrentPosition(Ai{10, 20});
+    interp.m100MaxVelocityOverride(Af{2.f, 2.f});
+    interp.m101MaxAccelerationOverride(Af{1.f, 1.f});
+    se.setPosition(Ai{10, 20});
 
     interp.g28RunHomingCycle();
-    interp.linearMove({10.f, 10.f}, inf());
     interp.linearMove({20.f, 20.f}, inf());
+    interp.start();
 
-    auto cmds = interp.commands();
-    ASSERT_THAT(cmds, SizeIs(2));
+    SegmentsExecutorMock::Segments expected{
+        {{0.1f, 0.2f}},
 
-    EXPECT_THAT(cmds[0].type(), Eq(Interp::Cmd::Homing));
-    EXPECT_THAT(cmds[0].homingVelocity(), Eq(Af{0.1f, 0.2f}));
-
-    EXPECT_THAT(cmds[1].type(), Eq(Interp::Cmd::Move));
-    EXPECT_THAT(cmds[1].maxVelocity(), Eq(Af{0.2f, 0.4f}));
-    EXPECT_THAT(cmds[1].maxAcceleration(), Eq(Af{0.02f, 0.02f}));
-    EXPECT_THAT(cmds[1].path(), ElementsAre(Ai{10, 20}, Ai{10, 10}, Ai{20, 20}));
+        {20, {0, 0}, {2, 0}},
+        {30, {6, 0}},
+        {20, {2, 0}, {0, 0}},
+    };
+    EXPECT_THAT(se.seg, ContainerEq(expected));
 }
 
 TEST_F(GCodeInterpreter_Should, move_and_wait) {
     interp.setTicksPerSecond(10);
-    interp.m100MaxVelocityOverride(Af{2.f, 4.f});
-    interp.m101MaxAccelerationOverride(Af{2.f, 2.f});
-    interp.setCurrentPosition(Ai{10, 20});
+    interp.m100MaxVelocityOverride(Af{2.f, 2.f});
+    interp.m101MaxAccelerationOverride(Af{1.f, 1.f});
+    se.setPosition(Ai{10, 20});
 
-    interp.linearMove({10.f, 10.f}, inf());
-
-    interp.g4Wait(10);
-
-    interp.m100MaxVelocityOverride(Af{1.f, 2.f});
-    interp.m101MaxAccelerationOverride(Af{4.f, 4.f});
     interp.linearMove({20.f, 20.f}, inf());
+    interp.g4Wait(2);
+    interp.linearMove({10.f, 20.f}, inf());
+    interp.start();
 
-    auto cmds = interp.commands();
-    ASSERT_THAT(cmds, SizeIs(3));
+    SegmentsExecutorMock::Segments expected{
+        {20, {0, 0}, {2, 0}},
+        {30, {6, 0}},
+        {20, {2, 0}, {0, 0}},
 
-    EXPECT_THAT(cmds[0].type(), Eq(Interp::Cmd::Move));
-    EXPECT_THAT(cmds[0].maxVelocity(), Eq(Af{0.2f, 0.4f}));
-    EXPECT_THAT(cmds[0].maxAcceleration(), Eq(Af{0.02f, 0.02f}));
-    EXPECT_THAT(cmds[0].path(), ElementsAre(Ai{10, 20}, Ai{10, 10}));
+        {20},
 
-    EXPECT_THAT(cmds[1].type(), Eq(Interp::Cmd::Wait));
-    EXPECT_THAT(cmds[1].waitDuration(), Eq(100));
-
-    EXPECT_THAT(cmds[2].type(), Eq(Interp::Cmd::Move));
-    EXPECT_THAT(cmds[2].maxVelocity(), Eq(Af{0.1f, 0.2f}));
-    EXPECT_THAT(cmds[2].maxAcceleration(), Eq(Af{0.04f, 0.04f}));
-    EXPECT_THAT(cmds[2].path(), ElementsAre(Ai{10, 10}, Ai{20, 20}));
+        {20, {0, 0}, {-2, 0}},
+        {30, {-6, 0}},
+        {20, {-2, 0}, {0, 0}},
+    };
+    EXPECT_THAT(se.seg, ContainerEq(expected));
 }
 
-TEST(Command_Should, be_moved) {
-    Cmd c1({Ai{1, 2}}, Af{1, 1}, Af{2, 2});
-    Cmd c2 = std::move(c1);
-
-    EXPECT_THAT(c1.path(), IsEmpty());
-    EXPECT_THAT(c2.path(), Not(IsEmpty()));
-}
 }

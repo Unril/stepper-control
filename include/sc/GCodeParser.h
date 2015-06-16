@@ -1,51 +1,8 @@
 #pragma once
 
-#include "Axes.h"
-
-#include <cstdint>
+#include "Interfaces.h"
 
 namespace StepperControl {
-enum DistanceMode { Absolute, Relative };
-
-template <size_t AxesSize>
-class IGCodeInterpreter {
-  public:
-    using Af = Axes<float, AxesSize>;
-
-    virtual ~IGCodeInterpreter() {}
-
-    virtual void feedrateOverride(float feed) = 0;
-
-    virtual void linearMove(Af const &pos, float feed) = 0;
-
-    virtual void g0RapidMove(Af const &pos) = 0;
-
-    virtual void g1LinearMove(Af const &pos, float feed) = 0;
-
-    virtual void g4Wait(float sec) = 0;
-
-    virtual void g28RunHomingCycle() = 0;
-
-    virtual void g90g91DistanceMode(DistanceMode) = 0;
-
-    virtual void m100MaxVelocityOverride(Af const &vel) = 0;
-
-    virtual void m101MaxAccelerationOverride(Af const &acc) = 0;
-
-    virtual void m102StepsPerUnitLengthOverride(Af const &spl) = 0;
-
-    virtual void m103HomingVelocityOverride(Af const &vel) = 0;
-
-    virtual void error(size_t pos, const char *line, const char *reason) = 0;
-
-    virtual void start() = 0;
-
-    virtual void stop() = 0;
-
-    virtual void printInfo() const = 0;
-
-    virtual void clearCommandsBuffer() = 0;
-};
 
 /*
 Parser accepts input line and calls corresponding callbacks.
@@ -268,7 +225,7 @@ class GCodeParser {
         if (!expectNewLine()) {
             return false;
         }
-        cb_->g90g91DistanceMode(Absolute);
+        cb_->g90g91DistanceMode(DistanceMode::Absolute);
         return true;
     }
 
@@ -276,7 +233,7 @@ class GCodeParser {
         if (!expectNewLine()) {
             return false;
         }
-        cb_->g90g91DistanceMode(Relative);
+        cb_->g90g91DistanceMode(DistanceMode::Relative);
         return true;
     }
 
