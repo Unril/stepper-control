@@ -56,7 +56,7 @@ struct UIntConst {};
 template <typename T>
 inline void printNumber(T num) {
     if (std::is_integral<T>::value) {
-        printf("%ld", static_cast<long>(num));
+        printf("%d", static_cast<int>(num));
     } else if (std::is_floating_point<T>::value) {
         printf("%f", static_cast<float>(num));
     }

@@ -2,9 +2,9 @@
 
 #include "../include/sc/GCodeParser.h"
 #include "../include/sc/GCodeInterpreter.h"
+#include "../include/sc/SegmentsExecutor.h"
 
 #include <fstream>
-#include "../include/sc/SegmentsExecutor.h"
 
 using namespace StepperControl;
 using namespace testing;

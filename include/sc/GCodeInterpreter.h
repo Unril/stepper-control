@@ -117,33 +117,28 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
     void stop() override { executor_->stop(); }
 
     void printInfo() const override {
-        printf("Current position: ");
-        axPrintf(currentPosition());
-        printf("\nTicks per second: %ld", static_cast<long>(ticksPerSec_));
-        printf("\nPath (%ld): ", static_cast<long>(path_.size()));
+        printf("Max velocity: ");
+        axPrintf(maxVel_);
+        printf("\nMax acceleration: ");
+        axPrintf(maxAcc_);
+        printf("\nHoming velocity: ");
+        axPrintf(homingVel_);
+        printf("\nSteps per unit length: ");
+        axPrintf(stepPerUnit_);
+        printf("\nMode: %s", mode_ == DistanceMode::Absolute ? "Absolute" : "Relative");
+        printf("\nTicks per second: %d", static_cast<int>(ticksPerSec_));
+        printf("\nPath (%d): ", static_cast<int>(path_.size()));
         for (auto &p : path_) {
+            printf("\n    ");
             axPrintf(p);
-            printf("\n");
+
         }
+        printf("\n");
     }
 
     void clearCommandsBuffer() override {
         path_.clear();
         segments_.clear();
-    }
-
-    ///////////////////////////////////////////////////////////////////////////
-    // Control
-    ///////////////////////////////////////////////////////////////////////////
-
-    void onStopped() const {
-        axPrintf(currentPosition());
-        printf("\nCompleted\n");
-    }
-
-    void printCurrentPosition() const {
-        axPrintf(currentPosition());
-        printf("\n");
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -155,9 +150,6 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
         ticksPerSec_ = tps;
         executor_->setTicksPerSecond(tps);
     }
-
-    // In units.
-    Af const &currentPosition() const { return toUnits(executor_->position()); }
 
     Af const &maxVelocity() const { return maxVel_; }
 
@@ -172,6 +164,8 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
     std::vector<Sg> const &segments() const { return segments_; }
 
     std::vector<Ai> const &path() const { return path_; }
+
+    Af toUnits(Ai const &pos) const { return axCast<float>(pos) / stepPerUnit_; }
 
   private:
     void loadSegmentsToExecutor() {
@@ -202,8 +196,6 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
         segGen.setDurations(move(trajGen.durations()));
         segGen.update(segments_);
     }
-
-    Af toUnits(Ai const &pos) const { return axCast<float>(pos) / stepPerUnit_; }
 
     ISegmentsExecutor<AxesSize> *executor_;
     std::vector<Sg> segments_;

@@ -15,8 +15,8 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
     using OnStoppedFunc = void (*)(void *);
 
     SegmentsExecutor(TMotor *motor, TTicker *ticker)
-        : motor_(motor), ticker_(ticker), position_(axZero<Ai>()), ticksPerSecond_(1),
-          onStopped_(nullptr, nullptr) {
+        : running_(false), homing_(false), motor_(motor), ticker_(ticker), position_(axZero<Ai>()),
+          ticksPerSecond_(1), onStopped_(nullptr, nullptr) {
         scAssert(motor_ && ticker_);
         it_ = segments_.end();
     }
@@ -49,7 +49,7 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
             return;
         }
         it_ = segments_.begin();
-
+        running_ = true;
         ticker_->attach_us(this, &SegmentsExecutor::tick, 1000000 / ticksPerSecond_);
     }
 
@@ -59,13 +59,13 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
             // Integrate next interval.
             tick0();
         } else if (dt == 0 && ++it_ != segments_.end()) {
-            // dt == 0
             // If there is next segment then integrate it's first interval.
             tick0();
         } else if (dt < 0) {
             // It is a homing cycle.
-            // TODO: check maximum frequency it can work on. Skip cycles if neccesary.
-            if (any(neq(it_->velocity, 0))) {
+            // TODO: check maximum frequency it can work on. Skip cycles if necessary.
+            homing_ = any(neq(it_->velocity, 0));
+            if (homing_) {
                 // If any of switches is not hit then integrate next interval.
                 tick0();
 
@@ -75,6 +75,7 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
                         it_->velocity[i] = 0;
                     }
                 }
+
             } else {
                 // Stop and reset position when all switches are hit.
                 it_->dt = 0;
@@ -86,9 +87,12 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
         }
     }
 
-    bool isRunning() const override { return it_ != segments_.end(); }
+    bool isRunning() const override { return running_; }
+
+    bool isHoming() const { return homing_; }
 
     void stop() override {
+        running_ = false;
         ticker_->detach();
         it_ = segments_.end();
         if (onStopped_.first) {
@@ -181,6 +185,7 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
     // All axes were integrated.
     FORCE_INLINE void tickI(UIntConst<AxesSize>) {}
 
+    bool running_, homing_;
     typename Segments::iterator it_;
     Segments segments_;
     TMotor *motor_;

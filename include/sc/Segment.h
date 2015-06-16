@@ -55,7 +55,7 @@ struct Segment {
     Segment(int32_t dt, Ai const &dx) : dt(dt) {
         auto dtL = static_cast<int64_t>(dt);
 
-        // Overwflow check.
+        // Overflow check.
         scAssert(all(le(axCast<int64_t>(axAbs(dx)), axConst<Al>(int64Max / 2))));
 
         scAssert(dt > 0);
@@ -83,7 +83,7 @@ struct Segment {
         auto twiceDtL = static_cast<int64_t>(twiceDt);
         auto halfA = (dx2 - dx1);
 
-        // Overwflow check.
+        // Overflow check.
         scAssert(twiceDtL <= int64Max / twiceDtL);
         scAssert(all(le(axCast<int64_t>(axAbs(dx1)), axConst<Al>(int64Max / (2 * twiceDtL)))));
         scAssert(all(le(axCast<int64_t>(axAbs(dx2)), axConst<Al>(int64Max / (2 * twiceDtL)))));
@@ -100,7 +100,7 @@ struct Segment {
         error.fill(0);
 
         // First half step integration to make area under the velocity profile equal it's real
-        // value at the end of integraion.
+        // value at the end of integration.
         velocity += axCast<int64_t>(halfA);
     }
 

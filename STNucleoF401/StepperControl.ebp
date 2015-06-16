@@ -19,7 +19,7 @@
 				<Compiler>
 					<Add option="-mfloat-abi=softfp" />
 					<Add option="-fno-exceptions" />
-					<Add option="-std=gnu99" />
+					<Add option="-std=c11" />
 					<Add option="-Wextra" />
 					<Add option="-Wall" />
 					<Add option="-fomit-frame-pointer" />
@@ -54,6 +54,12 @@
 					<Add directory="mbed\TARGET_NUCLEO_F401RE\TARGET_STM" />
 					<Add directory="mbed\TARGET_NUCLEO_F401RE\TARGET_STM\TARGET_STM32F4" />
 					<Add directory="mbed\TARGET_NUCLEO_F401RE\TARGET_STM\TARGET_STM32F4\TARGET_NUCLEO_F401RE" />
+					<Add directory="mbed-rtos" />
+					<Add directory="mbed-rtos\rtx" />
+					<Add directory="mbed-rtos\rtx\TARGET_CORTEX_M" />
+					<Add directory="mbed-rtos\rtx\TARGET_CORTEX_M\TARGET_M4" />
+					<Add directory="mbed-rtos\rtx\TARGET_CORTEX_M\TARGET_M4\TOOLCHAIN_GCC" />
+					<Add directory="mbed-rtos\rtos" />
 				</Compiler>
 				<Cpp>
 					<Add option="-mfloat-abi=softfp" />
@@ -102,8 +108,6 @@
 			</Target>
 		</Build>
 		<Unit filename="..\include\sc\Axes.h" />
-		<Unit filename="..\include\sc\Command.h" />
-		<Unit filename="..\include\sc\CommandsExecutor.h" />
 		<Unit filename="..\include\sc\Common.h" />
 		<Unit filename="..\include\sc\GCodeInterpreter.h" />
 		<Unit filename="..\include\sc\GCodeParser.h" />

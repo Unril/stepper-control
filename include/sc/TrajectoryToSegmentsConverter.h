@@ -71,7 +71,7 @@ class TrajectoryToSegmentsConverter {
             auto Dx = axLRound(0.5f * tBlend * v);
             auto DxNext = axLRound(0.5f * tBlend * vNext);
 
-            // Check rounded slope <= 0.5 and correct blend duration if neccesary.
+            // Check rounded slope <= 0.5 and correct blend duration if necessary.
             auto tBlendCorrected = tBlend;
             for (size_t j = 0; j < AxesSize; ++j) {
                 auto DxAbsX4 = abs(Dx[j] * 4.f);
@@ -109,7 +109,7 @@ class TrajectoryToSegmentsConverter {
 
         auto tLineTrunc = lTruncTowardInf(tLine);
         if (tLineTrunc > 0) {
-            // Check rounded slope <= 0.5 and correct line duration if neccesary.
+            // Check rounded slope <= 0.5 and correct line duration if necessary.
             for (size_t j = 0; j < AxesSize; ++j) {
                 auto DxAbsX2 = abs(DxLine[j] * 2);
                 if (tLineTrunc < DxAbsX2) {

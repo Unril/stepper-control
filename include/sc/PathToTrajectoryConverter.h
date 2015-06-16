@@ -35,7 +35,7 @@ class PathToTrajectoryConverter {
 
     void setPath(std::vector<Ai> &&path) { path_ = move(path); }
 
-    // Should be less or equal that 0.4 to propper segment generation.
+    // Should be less or equal that 0.4 to proper segment generation.
     // In steps per tick.
     void setMaxVelocity(Af const &maxVel) {
         scAssert(all(gt(maxVel, axZero<Af>())));
@@ -48,8 +48,8 @@ class PathToTrajectoryConverter {
         maxAcceleration_ = maxAccel;
     }
 
-    // Remove waypoint if difference between it and next is less than threshold for all axes.
-    // Does not remove first or last waypoints.
+    // Remove way-point if difference between it and next is less than threshold for all axes.
+    // Does not remove first or last way-points.
     void removeCloseWaypoints(Ai const &threshold) {
         scAssert(all(ge(threshold, axZero<Ai>())));
 
