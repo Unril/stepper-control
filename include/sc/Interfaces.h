@@ -35,13 +35,15 @@ class IGCodeInterpreter {
 
     virtual void m103HomingVelocityOverride(Af const &vel) = 0;
 
+    virtual void m104PrintInfo() const = 0;
+
     virtual void error(size_t pos, const char *line, const char *reason) = 0;
 
     virtual void start() = 0;
 
     virtual void stop() = 0;
 
-    virtual void printInfo() const = 0;
+    virtual void printCurrentPosition() const = 0;
 
     virtual void clearCommandsBuffer() = 0;
 };

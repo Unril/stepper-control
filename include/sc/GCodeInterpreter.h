@@ -105,18 +105,7 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
         applyInplace(homingVel_, Clamp<float>(0.0f, 0.5f));
     }
 
-    void error(size_t pos, const char *line, const char *reason) override {
-        printf("Error: %s at %d in %s\n", reason, static_cast<int>(pos), line);
-    }
-
-    void start() override {
-        loadSegmentsToExecutor();
-        executor_->start();
-    }
-
-    void stop() override { executor_->stop(); }
-
-    void printInfo() const override {
+    void m104PrintInfo() const override {
         printf("Max velocity: ");
         axPrintf(maxVel_);
         printf("\nMax acceleration: ");
@@ -131,8 +120,24 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
         for (auto &p : path_) {
             printf("\n    ");
             axPrintf(p);
-
         }
+        printf("\n");
+    }
+
+    void error(size_t pos, const char *line, const char *reason) override {
+        printf("Error: %s at %d in %s\n", reason, static_cast<int>(pos), line);
+    }
+
+    void start() override {
+        loadSegmentsToExecutor();
+        executor_->start();
+    }
+
+    void stop() override { executor_->stop(); }
+
+    void printCurrentPosition() const override {
+        printf("Position ");
+        axPrintf(toUnits(executor_->position()));
         printf("\n");
     }
 

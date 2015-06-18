@@ -29,12 +29,12 @@ static FastOut<D12> tickPin;
 struct Motor {
     template <size_t i, size_t edge>
     FORCE_INLINE static void writeStep(UIntConst<i>, UIntConst<edge>) {
-        s0Step = edge;
+        tickPin = edge;
     }
 
     template <size_t i, size_t dir>
     FORCE_INLINE static void writeDirection(UIntConst<i>, UIntConst<dir>) {
-        s0Dir = dir;
+        tickPin = dir;
     }
 
     // Stepper 0
@@ -69,9 +69,9 @@ struct Motor {
 
     // Tick pin
 
-    FORCE_INLINE static void begin() { tickPin.set(); }
+    FORCE_INLINE static void begin() { }
 
-    FORCE_INLINE static void end() { tickPin.clear(); }
+    FORCE_INLINE static void end() { }
 
     FORCE_INLINE static bool checkEndSwitchHit(size_t i) {
         return !btn;
@@ -115,7 +115,7 @@ int32_t getTicksPerSecond(size_t sz) {
     }
 }
 
-const size_t axesSize = 4;
+const size_t axesSize = 5;
 const int32_t ticksPerSecond = getTicksPerSecond(axesSize);
 const float Pi = 3.14159265358979323846f;
 const int32_t notifyPositionIntervalMs = 200;
@@ -157,24 +157,30 @@ int main() {
         if (pc.readable()) {
 
             fgets(buffer, sizeof(buffer), pc);
-            parser.parseLine(buffer);
+
+            try {
+                parser.parseLine(buffer);
+            } catch (std::exception const &e) {
+                printf("Exception %s\n", e.what());
+                interpreter.clearCommandsBuffer();
+            } catch (...) {
+                scAssert(!"UnknownException\n");
+            }
         }
 
         if (timer.read_ms() >= notifyPositionIntervalMs) {
             timer.reset();
 
             if (executor.isRunning() && !executor.isHoming()) {
-                printf("Move ");
-                axPrintf(interpreter.toUnits(executor.position()));
-                printf("\n");
+                interpreter.printCurrentPosition();
             }
         }
 
         if (justStopped) {
             justStopped = false;
-            printf("Move ");
-            axPrintf(interpreter.toUnits(executor.position()));
-            printf("\nCompleted\n");
+
+            interpreter.printCurrentPosition();
+            printf("Completed\n");
         }
     }
 }

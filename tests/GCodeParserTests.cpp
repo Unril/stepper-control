@@ -23,7 +23,8 @@ struct GCodeParserCallbacksMock : IGCodeInterpreter<AxesSize> {
     MOCK_METHOD1(m103HomingVelocityOverride, void(Af const &));
     MOCK_METHOD0(start, void());
     MOCK_METHOD0(stop, void());
-    MOCK_CONST_METHOD0(printInfo, void());
+    MOCK_CONST_METHOD0(printCurrentPosition, void());
+    MOCK_CONST_METHOD0(m104PrintInfo, void());
     MOCK_METHOD0(clearCommandsBuffer, void());
 
     void error(size_t pos, const char *line, const char *reason) override {
@@ -240,12 +241,21 @@ TEST_F(GCodeParser_Should, not_clearCommandsBuffer_if_no_line_end) {
     EXPECT_THROW(parse("^"), std::logic_error);
 }
 
-TEST_F(GCodeParser_Should, printInfo) {
-    EXPECT_CALL(cb_, printInfo());
+TEST_F(GCodeParser_Should, printCurrentPosition) {
+    EXPECT_CALL(cb_, printCurrentPosition());
     parse("?\n");
 }
 
-TEST_F(GCodeParser_Should, not_printInfo_if_no_line_end) {
+TEST_F(GCodeParser_Should, not_printCurrentPosition_if_no_line_end) {
     EXPECT_THROW(parse("?"), std::logic_error);
+}
+
+TEST_F(GCodeParser_Should, printInfo) {
+    EXPECT_CALL(cb_, m104PrintInfo());
+    parse("m104\n");
+}
+
+TEST_F(GCodeParser_Should, not_printInfo_if_no_line_end) {
+    EXPECT_THROW(parse("m104"), std::logic_error);
 }
 }

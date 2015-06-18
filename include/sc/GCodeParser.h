@@ -28,18 +28,19 @@ m100MaxVelocityOverride = [axesFloat] "\n"
 m101MaxAccelerationOverride = [axesFloat] "\n"
 m102StepsPerUnitLengthOverride = [axesFloat] "\n"
 m103HomingVelocityOverride = [axesFloat] "\n"
+m104PrintInfo = "\n"
 
 linearMove = axesWithFeedrate "\n"
 feedrateOverride = feedrate "\n"
 gCommand = "G" integer ( g0RapidMove | g1LinearMove | g4Wait | g28RunHomingCycle |
     g90AbsoluteDistanceMode | g91RelativeDistanceMode )
 mCommand = "M" integer ( m100MaxVelocityOverride | m101MaxAccelerationOverride |
-    m102StepsPerUnitLengthOverride | m103HomingVelocityOverride)
+    m102StepsPerUnitLengthOverride | m103HomingVelocityOverride | m104PrintInfo)
 start = "~" "\n"
 stop = "!" "\n"
 clearCommandsBuffer = "^" "\n"
-printInfo = "?" "\n"
-line = ( start | stop | | clearCommandsBuffer | printInfo |
+printCurrentPosition = "?" "\n"
+line = ( start | stop | | clearCommandsBuffer | printCurrentPosition |
     linearMove | feedrateOverride | gCommand | mCommand | "\n" )
 */
 template <size_t AxesSize>
@@ -306,6 +307,14 @@ class GCodeParser {
         return true;
     }
 
+    bool m104PrintInfo() {
+        if (!expectNewLine()) {
+            return false;
+        }
+        cb_->m104PrintInfo();
+        return true;
+    }
+
     bool mCommand() {
         if (!isMCommand()) {
             return false;
@@ -325,6 +334,8 @@ class GCodeParser {
             return m102StepsPerUnitLengthOverride();
         case 103:
             return m103HomingVelocityOverride();
+        case 104:
+            return m104PrintInfo();
         default:
             error("unknown M command");
             return false;
@@ -367,7 +378,7 @@ class GCodeParser {
         return true;
     }
 
-    bool printInfo() {
+    bool printCurrentPosition() {
         if (!isInfo()) {
             return false;
         }
@@ -375,7 +386,7 @@ class GCodeParser {
         if (!expectNewLine()) {
             return false;
         }
-        cb_->printInfo();
+        cb_->printCurrentPosition();
         return true;
     }
 
@@ -401,7 +412,7 @@ class GCodeParser {
         if (clearCommandsBuffer()) {
             return true;
         }
-        if (printInfo()) {
+        if (printCurrentPosition()) {
             return true;
         }
         return expectNewLine();
