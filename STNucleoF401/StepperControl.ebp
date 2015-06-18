@@ -18,14 +18,18 @@
 				</Device>
 				<Compiler>
 					<Add option="-mfloat-abi=softfp" />
-					<Add option="-fno-exceptions" />
+					<Add option="-fno-rtti" />
 					<Add option="-std=c11" />
 					<Add option="-Wextra" />
 					<Add option="-Wall" />
+					<Add option="-fgcse" />
+					<Add option="-fexpensive-optimizations" />
+					<Add option="-fschedule-insns2" />
+					<Add option="-fschedule-insns" />
 					<Add option="-fomit-frame-pointer" />
 					<Add option="-fdata-sections" />
 					<Add option="-ffunction-sections" />
-					<Add option="-O2" />
+					<Add option="-O3" />
 					<Add option="-g" />
 					<Add option="-Wno-unused-parameter" />
 					<Add option="-Wno-missing-field-initializers" />
@@ -63,14 +67,16 @@
 				</Compiler>
 				<Cpp>
 					<Add option="-mfloat-abi=softfp" />
-					<Add option="-fno-exceptions" />
 					<Add option="-fno-rtti" />
 					<Add option="-std=gnu++11" />
 					<Add option="-W" />
 					<Add option="-Wextra" />
 					<Add option="-Wall" />
+					<Add option="-fsingle-precision-constant" />
 					<Add option="-fgcse" />
 					<Add option="-fexpensive-optimizations" />
+					<Add option="-fcse-skip-blocks" />
+					<Add option="-fcse-follow-jumps" />
 					<Add option="-fschedule-insns2" />
 					<Add option="-fschedule-insns" />
 					<Add option="-funroll-loops" />
@@ -89,7 +95,7 @@
 					<Add option="-Wa,--gdwarf-2" />
 				</Assembler>
 				<Linker>
-					<Add option="-eb_lib=n" />
+					<Add option="-eb_lib=d" />
 					<Add option="-lstdc++" />
 					<Add option="-eb_start_files" />
 					<Add option="-Wl,--gc-sections" />
