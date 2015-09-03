@@ -12,7 +12,7 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
     using Sg = Segment<AxesSize>;
     using Segments = std::vector<Sg>;
     using Ai = Axes<int32_t, AxesSize>;
-    using OnStoppedFunc = void (*)(void *);
+    using Callback = void (*)(void *);
 
     SegmentsExecutor(TMotor *motor, TTicker *ticker)
         : running_(false), homing_(false), motor_(motor), ticker_(ticker), position_(axZero<Ai>()),
@@ -40,9 +40,9 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
 
     Segments const &segments() const { return segments_; }
 
-    void setOnStopped(OnStoppedFunc func, void *payload) {
-        onStopped_ = std::make_pair(func, payload);
-    }
+    void setOnStarted(Callback func, void *payload) { onStarted_ = std::make_pair(func, payload); }
+
+    void setOnStopped(Callback func, void *payload) { onStopped_ = std::make_pair(func, payload); }
 
     void start() override {
         if (segments_.empty()) {
@@ -50,6 +50,9 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
         }
         it_ = segments_.begin();
         running_ = true;
+        if (onStarted_.first) {
+            onStarted_.first(onStarted_.second);
+        }
         ticker_->attach_us(this, &SegmentsExecutor::tick, 1000000 / ticksPerSecond_);
     }
 
@@ -192,6 +195,7 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
     TTicker *ticker_;
     Ai position_;
     int32_t ticksPerSecond_;
-    std::pair<OnStoppedFunc, void *> onStopped_;
+    std::pair<Callback, void *> onStarted_;
+    std::pair<Callback, void *> onStopped_;
 };
 }

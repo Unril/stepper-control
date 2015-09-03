@@ -14,11 +14,13 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
     using Ai = Axes<int32_t, AxesSize>;
     using Sg = Segment<AxesSize>;
 
-    explicit GCodeInterpreter(ISegmentsExecutor<AxesSize> *exec)
+    explicit GCodeInterpreter(ISegmentsExecutor<AxesSize> *exec,
+                              Printer *printer = Printer::instance())
         : executor_(exec), mode_(DistanceMode::Absolute), homingVel_(axConst<Af>(0.01f)),
           maxVel_(axConst<Af>(0.5f)), maxAcc_(axConst<Af>(0.1f)), stepPerUnit_(axConst<Af>(1.f)),
-          ticksPerSec_(1) {
+          ticksPerSec_(1), printer_(printer) {
         scAssert(exec != nullptr);
+        scAssert(printer != nullptr);
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -106,26 +108,19 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
     }
 
     void m104PrintInfo() const override {
-        printf("Max velocity: ");
-        axPrintf(maxVel_);
-        printf("\nMax acceleration: ");
-        axPrintf(maxAcc_);
-        printf("\nHoming velocity: ");
-        axPrintf(homingVel_);
-        printf("\nSteps per unit length: ");
-        axPrintf(stepPerUnit_);
-        printf("\nMode: %s", mode_ == DistanceMode::Absolute ? "Absolute" : "Relative");
-        printf("\nTicks per second: %d", static_cast<int>(ticksPerSec_));
-        printf("\nPath (%d): ", static_cast<int>(path_.size()));
+        *printer_ << "Max velocity: " << maxVel_ << "\nMax acceleration: " << maxAcc_
+                  << "\nHoming velocity: " << homingVel_
+                  << "\nSteps per unit length: " << stepPerUnit_
+                  << "\nMode: " << (mode_ == DistanceMode::Absolute ? "Absolute" : "Relative")
+                  << "\nTicks per second: " << ticksPerSec_ << "\nPath (" << path_.size() << "): ";
         for (auto &p : path_) {
-            printf("\n    ");
-            axPrintf(p);
+            *printer_ << "\n    " << p;
         }
-        printf("\n");
+        *printer_ << "\n";
     }
 
     void error(size_t pos, const char *line, const char *reason) override {
-        printf("Error: %s at %d in %s\n", reason, static_cast<int>(pos), line);
+        *printer_ << "Error: " << reason << " at " << pos << " in " << line << "\n";
     }
 
     void start() override {
@@ -136,9 +131,7 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
     void stop() override { executor_->stop(); }
 
     void printCurrentPosition() const override {
-        printf("Position ");
-        axPrintf(toUnits(executor_->position()));
-        printf("\n");
+        *printer_ << "Position: " << toUnits(executor_->position()) << "\n";
     }
 
     void clearCommandsBuffer() override {
@@ -171,6 +164,13 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
     std::vector<Ai> const &path() const { return path_; }
 
     Af toUnits(Ai const &pos) const { return axCast<float>(pos) / stepPerUnit_; }
+
+    void clearAll() {
+        executor_->stop();
+        segments_ = move(std::vector<Sg>());
+        path_ = move(std::vector<Ai>());
+        executor_->setSegments(move(std::vector<Sg>()));
+    }
 
   private:
     void loadSegmentsToExecutor() {
@@ -211,5 +211,6 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
     Af maxAcc_;
     Af stepPerUnit_;
     int32_t ticksPerSec_;
+    Printer *printer_;
 };
 }

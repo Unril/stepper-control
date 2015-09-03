@@ -45,20 +45,46 @@ inline float inf() { return std::numeric_limits<float>::infinity(); }
 
 template <typename T>
 struct Clamp {
-    inline Clamp(T minV, T maxV) : minVal(minV), maxVal(maxV) {}
-    inline T operator()(T val) { return std::min(maxVal, std::max(minVal, val)); }
+    Clamp(T minV, T maxV) : minVal(minV), maxVal(maxV) {}
+    T operator()(T val) { return std::min(maxVal, std::max(minVal, val)); }
     T minVal, maxVal;
 };
 
 template <size_t i>
 struct UIntConst {};
 
-template <typename T>
-inline void printNumber(T num) {
-    if (std::is_integral<T>::value) {
-        printf("%d", static_cast<int>(num));
-    } else if (std::is_floating_point<T>::value) {
-        printf("%f", static_cast<float>(num));
+struct Printer {
+    virtual ~Printer() {}
+    virtual void print(int n) { printf("%d", n); }
+    virtual void print(size_t n) { printf("%d", static_cast<int>(n)); }
+    virtual void print(float n) { printf("%f", n); }
+    virtual void print(double n) { printf("%f", n); }
+    virtual void print(const char *str) { printf("%s", str); }
+
+    static Printer *instance() {
+        static Printer p;
+        return &p;
     }
+};
+
+inline Printer &operator<<(Printer &p, int n) {
+    p.print(n);
+    return p;
+}
+inline Printer &operator<<(Printer &p, size_t n) {
+    p.print(n);
+    return p;
+}
+inline Printer &operator<<(Printer &p, float n) {
+    p.print(n);
+    return p;
+}
+inline Printer &operator<<(Printer &p, double n) {
+    p.print(n);
+    return p;
+}
+inline Printer &operator<<(Printer &p, const char *str) {
+    p.print(str);
+    return p;
 }
 }

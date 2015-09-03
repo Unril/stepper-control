@@ -2,6 +2,8 @@
 
 #include "Segment.h"
 
+#include <vector>
+
 namespace StepperControl {
 
 enum class DistanceMode { Absolute, Relative };

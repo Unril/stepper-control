@@ -5,7 +5,6 @@
 #include <array>
 #include <cmath>
 #include <cstdint>
-#include <ostream>
 
 namespace StepperControl {
 template <typename T, size_t Size>
@@ -400,13 +399,14 @@ inline void copyOnlyFinite(Axes<T, Size> const &src, Axes<T, Size> &dest) {
 }
 
 template <typename T, size_t Size>
-inline void axPrintf(Axes<T, Size> const &a) {
+inline Printer &operator<<(Printer &p, Axes<T, Size> const &a) {
     for (size_t i = 0; i < Size; ++i) {
-        printNumber(a[i]);
+        p.print(a[i]);
         if (i != Size - 1) {
-            printf(", ");
+            p.print(", ");
         }
     }
+    return p;
 }
 }
 

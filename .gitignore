@@ -32,3 +32,5 @@
 /STNucleoF401/mbed/.hg
 /STNucleoF401/.hg
 /STNucleoF401/doxygen
+/qtConsoleMock/x64/Debug/qtConsoleMock.tlog
+/qtConsoleMock/GeneratedFiles

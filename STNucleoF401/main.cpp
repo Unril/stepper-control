@@ -11,31 +11,26 @@ using namespace StepperControl;
 static Serial pc(SERIAL_TX, SERIAL_RX);
 
 // Stepper 0
-static FastOut<A0> s0Step;
-static FastOut<A1> s0Dir;
+static FastOut<PA_4> s0Step;
+static FastOut<PB_0> s0Dir;
 static FastIn<USER_BUTTON, PullUp> btn;
 
 // Stepper 1
-static FastOut<A2> s1Step;
-static FastOut<A3> s1Dir;
+static FastOut<PA_0> s1Step;
+static FastOut<PA_1> s1Dir;
 
 // Stepper 2
-static FastOut<A4> s2Step;
-static FastOut<A5> s2Dir;
+static FastOut<PC_2> s2Step;
+static FastOut<PC_3> s2Dir;
 
-// Tick pin.
-static FastOut<D12> tickPin;
+static FastIn<D12> stopButton;
 
 struct Motor {
     template <size_t i, size_t edge>
-    FORCE_INLINE static void writeStep(UIntConst<i>, UIntConst<edge>) {
-        tickPin = edge;
-    }
+    FORCE_INLINE static void writeStep(UIntConst<i>, UIntConst<edge>) {}
 
     template <size_t i, size_t dir>
-    FORCE_INLINE static void writeDirection(UIntConst<i>, UIntConst<dir>) {
-        tickPin = dir;
-    }
+    FORCE_INLINE static void writeDirection(UIntConst<i>, UIntConst<dir>) {}
 
     // Stepper 0
 
@@ -69,9 +64,9 @@ struct Motor {
 
     // Tick pin
 
-    FORCE_INLINE static void begin() { }
+    FORCE_INLINE static void begin() {}
 
-    FORCE_INLINE static void end() { }
+    FORCE_INLINE static void end() {}
 
     FORCE_INLINE static bool checkEndSwitchHit(size_t i) {
         return !btn;
@@ -139,21 +134,24 @@ int main() {
 
     interpreter.setTicksPerSecond(ticksPerSecond);
 
-    interpreter.m102StepsPerUnitLengthOverride(axConst<axesSize>(16000.f));
+    interpreter.m102StepsPerUnitLengthOverride(axConst<axesSize>(3200.f));
 
-    //    auto perRot = 1.f / (2.f * Pi);
-    //    interpreter.m102StepsPerUnitLengthOverride({20 * 1600 * perRot, 1600.f / 5, 20 * 1600 *
-    //    perRot,
-    //                                                10 * 1600 * perRot, 10 * 1600 * perRot});
+    auto perRot = 1.f / (2.f * Pi);
+    interpreter.m102StepsPerUnitLengthOverride({20 * 6400 * perRot, 6400.f / 5, 20 * 6400 * perRot,
+                                                10 * 6400 * perRot, 10 * 6400 * perRot});
 
-    //        auto rotVel = 0.5f;
-    //        auto rotAcc = 0.5f;
-    //        interpreter.m100MaxVelocityOverride({rotVel, 50.f , rotVel, rotVel, rotVel});
-    //        interpreter.m101MaxAccelerationOverride({rotAcc, 100.f, rotAcc, rotAcc, rotAcc});
+    auto rotVel = 0.5f;
+    auto rotAcc = 0.5f;
+    interpreter.m100MaxVelocityOverride({rotVel, 50.f, rotVel, rotVel, rotVel});
+    interpreter.m101MaxAccelerationOverride({rotAcc, 100.f, rotAcc, rotAcc, rotAcc});
 
     timer.start();
 
     while (true) {
+        if (stopButton.read()) {
+            interpreter.stop();
+        }
+
         if (pc.readable()) {
 
             fgets(buffer, sizeof(buffer), pc);
@@ -162,7 +160,7 @@ int main() {
                 parser.parseLine(buffer);
             } catch (std::exception const &e) {
                 printf("Exception %s\n", e.what());
-                interpreter.clearCommandsBuffer();
+                interpreter.clearAll();
             } catch (...) {
                 scAssert(!"UnknownException\n");
             }
