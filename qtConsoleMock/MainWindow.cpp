@@ -12,12 +12,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     statusTimer_->setTimerType(Qt::PreciseTimer);
     statusTimer_->setInterval(200);
 
-    printer_.reset(new SerialPrinter(port_));
-    ticker_.reset(new Ticker(tickerTimer_));
-    motor_.reset(new Motor());
-    executor_.reset(new SegmentsExecutor<axesSize, Motor, Ticker>(motor_.get(), ticker_.get()));
-    interpreter_.reset(new GCodeInterpreter<axesSize>(executor_.get(), printer_.get()));
-    parser_.reset(new GCodeParser<axesSize>(interpreter_.get()));
+    printer_ = new SerialPrinter(port_);
+    ticker_ = new Ticker(tickerTimer_);
+    motor_ = new Motor(this);
+
+    executor_.reset(new SegmentsExecutor<Motor, Ticker, TestAxesTraits>(motor_, ticker_));
+    interpreter_.reset(new GCodeInterpreter<TestAxesTraits>(executor_.get(), printer_));
+    parser_.reset(new GCodeParser<TestAxesTraits>(interpreter_.get()));
 
     executor_->setOnStarted([](void *p) { static_cast<This *>(p)->executionStarted(); }, this);
     executor_->setOnStopped([](void *p) { static_cast<This *>(p)->executionStopped(); }, this);
@@ -25,6 +26,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
 
     connect(port_, &QSerialPort::readyRead, this, &This::readyRead);
     connect(statusTimer_, &QTimer::timeout, this, &This::statusTimerTimeout);
+    connect(motor_, &Motor::update, this, &This::updatePositions);
 
     on_pbRefresh_clicked();
 }
@@ -94,6 +96,8 @@ void MainWindow::on_pbDisconnect_clicked() {
     ui_.pbDisconnect->setEnabled(false);
 }
 
+void MainWindow::on_pbReset_clicked() {}
+
 void MainWindow::readyRead() {
     if (!port_->canReadLine()) {
         return;
@@ -122,6 +126,20 @@ void MainWindow::statusTimerTimeout() {
 
 void MainWindow::executionStarted() {
     qDebug() << "Execution started.";
+
+    QDial *dials[] = {ui_.dA, ui_.dX, ui_.dY, ui_.dZ, ui_.dB};
+    for (int i = 0; i < TestAxesTraits::size; i++) {
+        auto dial = dials[i];
+        auto maxUnits = interpreter_->maxDistance()[i];
+        if (isfinite(maxUnits)) {
+            auto spu = interpreter_->stepsPerUnitLength()[i];
+            auto maxSteps = maxUnits * spu;
+            dial->setMaximum(maxSteps);
+        } else {
+            dial->setWrapping(true);
+        }
+    }
+
     statusTimer_->start();
 }
 
@@ -130,4 +148,13 @@ void MainWindow::executionStopped() {
     statusTimer_->stop();
     interpreter_->printCurrentPosition();
     *printer_ << "Completed\n";
+}
+
+void MainWindow::updatePositions() {
+    QDial *dials[] = {ui_.dA, ui_.dX, ui_.dY, ui_.dZ, ui_.dB};
+    for (int i = 0; i < TestAxesTraits::size; i++) {
+        auto dial = dials[i];
+        auto step = executor_->position()[i];
+        dial->setValue(step);
+    }
 }

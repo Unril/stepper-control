@@ -6,10 +6,15 @@ using namespace StepperControl;
 using namespace testing;
 
 namespace {
-const size_t AxesSize = 3;
-using Af = Axes<float, AxesSize>;
 
-struct GCodeParserCallbacksMock : IGCodeInterpreter<AxesSize> {
+struct AxTr {
+    static const int size = 3;
+    static const char *names() { return "ABC"; }
+};
+
+using Af = TAf<AxTr::size>;
+
+struct GCodeParserCallbacksMock : IGCodeInterpreter<AxTr> {
     MOCK_METHOD1(feedrateOverride, void(float));
     MOCK_METHOD2(linearMove, void(Af const &, float));
     MOCK_METHOD1(g0RapidMove, void(Af const &));
@@ -21,6 +26,7 @@ struct GCodeParserCallbacksMock : IGCodeInterpreter<AxesSize> {
     MOCK_METHOD1(m101MaxAccelerationOverride, void(Af const &));
     MOCK_METHOD1(m102StepsPerUnitLengthOverride, void(Af const &));
     MOCK_METHOD1(m103HomingVelocityOverride, void(Af const &));
+    MOCK_METHOD1(m105MaxDistanceOverride, void(Af const &));
     MOCK_METHOD0(start, void());
     MOCK_METHOD0(stop, void());
     MOCK_CONST_METHOD0(printCurrentPosition, void());
@@ -38,7 +44,7 @@ struct GCodeParser_Should : Test {
     GCodeParser_Should() {}
 
     GCodeParserCallbacksMock cb_;
-    GCodeParser<AxesSize> parser_{&cb_};
+    GCodeParser<AxTr> parser_{&cb_};
 
     void parse(std::string const &line) {
         if (!parser_.parseLine(line.c_str())) {
@@ -173,6 +179,17 @@ TEST_F(GCodeParser_Should, parse_m103HomingVelocityOverride) {
 
     EXPECT_CALL(cb_, m103HomingVelocityOverride(ElementsAre(inf(), inf(), inf())));
     parse("M103\n");
+}
+
+TEST_F(GCodeParser_Should, parse_m105MaxDistanceOverride) {
+    EXPECT_CALL(cb_, m105MaxDistanceOverride(ElementsAre(3.14f, 0.123f, 0.1f)));
+    parse("M105 A3.14 B0.123 C.1\n");
+
+    EXPECT_CALL(cb_, m105MaxDistanceOverride(ElementsAre(0.123f, inf(), inf())));
+    parse("M105 A0.123\n");
+
+    EXPECT_CALL(cb_, m105MaxDistanceOverride(ElementsAre(inf(), inf(), inf())));
+    parse("M105\n");
 }
 
 TEST_F(GCodeParser_Should, not_parse_without_line_break) {

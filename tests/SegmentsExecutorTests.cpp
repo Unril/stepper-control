@@ -7,6 +7,13 @@ using namespace testing;
 using namespace std;
 
 namespace {
+
+template <size_t AxesSize>
+struct AxTr {
+    static const int size = AxesSize;
+    static const char *names() { return "ABC"; }
+};
+
 template <size_t AxesSize>
 struct MotorMock {
     MotorMock() : isHit(axZero<Ai>()), dir(axZero<Ai>()), current{axZero<Ai>(), axZero<Ai>()} {}
@@ -66,10 +73,10 @@ struct SegmentsExecutorTestBase : Test {
     using Sg = Segment<AxesSize>;
     using Mm = MotorMock<AxesSize>;
     using Steps = vector<typename Mm::Step>;
-    using Executor = SegmentsExecutor<AxesSize, Mm, TickerMock>;
+    using Executor = SegmentsExecutor<Mm, TickerMock, AxTr<AxesSize>>;
     Mm motor;
     TickerMock ticker;
-    typename Executor::Segments segments;
+    typename Executor::Sgs segments;
     Executor executor;
 
     SegmentsExecutorTestBase() : executor{&motor, &ticker} {}

@@ -6,12 +6,17 @@ using namespace StepperControl;
 using namespace testing;
 
 namespace {
-const size_t AxesSize = 2;
 
-using Af = Axes<float, AxesSize>;
-using Ai = Axes<int32_t, AxesSize>;
+struct AxTr {
+    static const int size = 2;
+    static const char *names() { return "AB"; }
+};
 
-struct SegmentsExecutorMock : ISegmentsExecutor<AxesSize> {
+using Af = TAf<AxTr::size>;
+using Ai = TAi<AxTr::size>;
+using Sgs = TSgs<AxTr::size>;
+
+struct SegmentsExecutorMock : ISegmentsExecutor<AxTr> {
     void setTicksPerSecond(int32_t) override {}
 
     void start() override {}
@@ -24,16 +29,16 @@ struct SegmentsExecutorMock : ISegmentsExecutor<AxesSize> {
 
     void setPosition(Ai const &p) override { pos = p; }
 
-    void setSegments(Segments const &s) override { seg = s; }
+    void setSegments(Sgs const &s) override { seg = s; }
 
-    void setSegments(Segments &&s) override { seg = s; }
+    void setSegments(Sgs &&s) override { seg = s; }
 
     Ai pos = axZero<Ai>();
-    Segments seg;
+    Sgs seg;
 };
 
 struct GCodeInterpreter_Should : Test {
-    using Interp = GCodeInterpreter<AxesSize>;
+    using Interp = GCodeInterpreter<AxTr>;
     SegmentsExecutorMock se;
     Interp interp;
 
@@ -147,7 +152,7 @@ TEST_F(GCodeInterpreter_Should, home_and_move) {
     interp.linearMove({20.f, 20.f}, inf());
     interp.start();
 
-    SegmentsExecutorMock::Segments expected{
+    SegmentsExecutorMock::Sgs expected{
         {{0.1f, 0.2f}},
 
         {20, {0, 0}, {2, 0}},
@@ -168,7 +173,7 @@ TEST_F(GCodeInterpreter_Should, move_and_wait) {
     interp.linearMove({10.f, 20.f}, inf());
     interp.start();
 
-    SegmentsExecutorMock::Segments expected{
+    SegmentsExecutorMock::Sgs expected{
         {20, {0, 0}, {2, 0}},
         {30, {6, 0}},
         {20, {2, 0}, {0, 0}},
@@ -182,4 +187,11 @@ TEST_F(GCodeInterpreter_Should, move_and_wait) {
     EXPECT_THAT(se.seg, ContainerEq(expected));
 }
 
+TEST_F(GCodeInterpreter_Should, trim_distance) {
+    interp.m105MaxDistanceOverride(Af{inf(), 10.f});
+
+    interp.linearMove(Af{20, 20}, inf());
+    interp.linearMove(Af{-20, -20}, inf());
+    EXPECT_THAT(path(), ElementsAre(Ai{0, 0}, Ai{20, 10}, Ai{-20, 0}));
+}
 }

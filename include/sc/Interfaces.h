@@ -6,12 +6,29 @@
 
 namespace StepperControl {
 
+struct DefaultAxesTraits {
+    static const int size = 9;
+    static const char *names() { return "ABCUVWXYZ"; }
+};
+
+template <size_t size>
+using TAf = Axes<float, size>;
+
+template <size_t size>
+using TAi = Axes<int32_t, size>;
+
+template <size_t size>
+using TSg = Segment<size>;
+
+template <size_t size>
+using TSgs = std::vector<TSg<size>>;
+
 enum class DistanceMode { Absolute, Relative };
 
-template <size_t AxesSize>
+template <typename AxesTraits>
 class IGCodeInterpreter {
   public:
-    using Af = Axes<float, AxesSize>;
+    using Af = TAf<AxesTraits::size>;
 
     virtual ~IGCodeInterpreter() {}
 
@@ -39,6 +56,8 @@ class IGCodeInterpreter {
 
     virtual void m104PrintInfo() const = 0;
 
+    virtual void m105MaxDistanceOverride(Af const &vel) = 0;
+
     virtual void error(size_t pos, const char *line, const char *reason) = 0;
 
     virtual void start() = 0;
@@ -50,11 +69,11 @@ class IGCodeInterpreter {
     virtual void clearCommandsBuffer() = 0;
 };
 
-template <size_t AxesSize>
+template <typename AxesTraits>
 struct ISegmentsExecutor {
-    using Ai = Axes<int32_t, AxesSize>;
-    using Sg = Segment<AxesSize>;
-    using Segments = std::vector<Sg>;
+    using Ai = TAi<AxesTraits::size>;
+    using Sg = TSg<AxesTraits::size>;
+    using Sgs = TSgs<AxesTraits::size>;
 
     virtual ~ISegmentsExecutor() {}
 
@@ -68,9 +87,9 @@ struct ISegmentsExecutor {
 
     virtual void setPosition(Ai const &) = 0;
 
-    virtual void setSegments(Segments const &) = 0;
+    virtual void setSegments(Sgs const &) = 0;
 
-    virtual void setSegments(Segments &&) = 0;
+    virtual void setSegments(Sgs &&) = 0;
 
     virtual void setTicksPerSecond(int32_t) = 0;
 };

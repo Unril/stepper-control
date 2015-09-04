@@ -7,6 +7,7 @@
 #include <cstdint>
 
 namespace StepperControl {
+
 template <typename T, size_t Size>
 using Axes = std::array<T, Size>;
 

@@ -18,18 +18,41 @@
 
 using namespace StepperControl;
 
-struct Motor {
-    template <size_t i, size_t edge>
-    static void writeStep(UIntConst<i>, UIntConst<edge>) {}
-    template <size_t i, size_t dir>
-    static void writeDirection(UIntConst<i>, UIntConst<dir>) {}
-    static bool checkEndSwitchHit(size_t i) { return true; }
-    static void begin() {}
-    static void end() {}
+struct TestAxesTraits {
+    static const int size = 5;
+    static const char *names() { return "AXYZB"; }
 };
 
-struct Ticker {
-    explicit Ticker(QTimer *parent) : timer_(parent) {
+class Motor : public QObject {
+    Q_OBJECT
+  public:
+    explicit Motor(QObject *parent) : QObject(parent) {
+    }
+
+    template <size_t i, size_t reverse>
+    void writeDirection(UIntConst<i>, UIntConst<reverse>) {
+    }
+
+    template <size_t i, size_t edge>
+    void writeStep(UIntConst<i>, UIntConst<edge>) {
+      
+    }
+
+    bool checkEndSwitchHit(size_t i) { return true; }
+
+    void begin() {}
+
+    void end() { emit update(); }
+
+  signals:
+    void update();
+};
+
+class Ticker : public QObject {
+    Q_OBJECT
+
+  public:
+    explicit Ticker(QTimer *parent) : QObject(parent), timer_(parent) {
         QObject::connect(timer_, &QTimer::timeout, [this]() { ticker_(); });
     }
 
@@ -47,8 +70,11 @@ struct Ticker {
     std::function<void()> ticker_ = []() {};
 };
 
-struct SerialPrinter : Printer {
-    explicit SerialPrinter(QSerialPort *port) : port_(port) {}
+class SerialPrinter : public QObject, public Printer {
+    Q_OBJECT
+
+  public:
+    explicit SerialPrinter(QSerialPort *port) : QObject(port), port_(port) {}
 
     void print(int n) override { write(n); }
     void print(size_t n) override { write(n); }
@@ -67,8 +93,6 @@ struct SerialPrinter : Printer {
     QSerialPort *port_;
 };
 
-const size_t axesSize = 5;
-
 class MainWindow : public QMainWindow {
     Q_OBJECT
 
@@ -82,19 +106,22 @@ class MainWindow : public QMainWindow {
     void on_pbRefresh_clicked();
     void on_pbConnect_clicked();
     void on_pbDisconnect_clicked();
+    void on_pbReset_clicked();
 
     void readyRead();
     void statusTimerTimeout();
     void executionStarted();
     void executionStopped();
 
+    void updatePositions();
+
   private:
-    std::unique_ptr<SerialPrinter> printer_;
-    std::unique_ptr<Ticker> ticker_;
-    std::unique_ptr<Motor> motor_;
-    std::unique_ptr<SegmentsExecutor<axesSize, Motor, Ticker>> executor_;
-    std::unique_ptr<GCodeInterpreter<axesSize>> interpreter_;
-    std::unique_ptr<GCodeParser<axesSize>> parser_;
+    SerialPrinter *printer_;
+    Ticker *ticker_;
+    Motor *motor_;
+    std::unique_ptr<SegmentsExecutor<Motor, Ticker, TestAxesTraits>> executor_;
+    std::unique_ptr<GCodeInterpreter<TestAxesTraits>> interpreter_;
+    std::unique_ptr<GCodeParser<TestAxesTraits>> parser_;
 
     Ui::MainWindow ui_;
     QSerialPort *port_;

@@ -7,18 +7,19 @@
 namespace StepperControl {
 
 // Interpreter reacts to callbacks from parser and creates commands from them.
-template <size_t AxesSize>
-class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
+template <typename AxesTraits = DefaultAxesTraits>
+class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
   public:
-    using Af = Axes<float, AxesSize>;
-    using Ai = Axes<int32_t, AxesSize>;
-    using Sg = Segment<AxesSize>;
+    using Af = TAf<AxesTraits::size>;
+    using Ai = TAi<AxesTraits::size>;
+    using Sg = TSg<AxesTraits::size>;
+    using Sgs = TSgs<AxesTraits::size>;
 
-    explicit GCodeInterpreter(ISegmentsExecutor<AxesSize> *exec,
+    explicit GCodeInterpreter(ISegmentsExecutor<AxesTraits> *exec,
                               Printer *printer = Printer::instance())
         : executor_(exec), mode_(DistanceMode::Absolute), homingVel_(axConst<Af>(0.01f)),
           maxVel_(axConst<Af>(0.5f)), maxAcc_(axConst<Af>(0.1f)), stepPerUnit_(axConst<Af>(1.f)),
-          ticksPerSec_(1), printer_(printer) {
+          maxDistance_(axInf<Af>()), ticksPerSec_(1), printer_(printer) {
         scAssert(exec != nullptr);
         scAssert(printer != nullptr);
     }
@@ -38,11 +39,19 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
 
         // Update only finite values. Infinite values corresponds to unset axes.
         auto position = path_.back();
-        for (size_t i = 0; i < AxesSize; ++i) {
-            if (!std::isfinite(positionInUnits[i])) {
+        for (size_t i = 0; i < AxesTraits::size; ++i) {
+            auto pos = positionInUnits[i];
+            if (!std::isfinite(pos)) {
                 continue;
             }
-            auto steps = lroundf(positionInUnits[i] * stepPerUnit_[i]);
+            auto maxDist = maxDistance_[i];
+            if (pos > maxDist) {
+                pos = maxDist;
+            } else if (std::isfinite(maxDist)) {
+                pos = 0;
+            }
+
+            auto steps = lroundf(pos * stepPerUnit_[i]);
             if (mode_ == DistanceMode::Relative) {
                 position[i] += steps;
             } else {
@@ -119,6 +128,14 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
         *printer_ << "\n";
     }
 
+    // Set max traveling distance in units. If it's not inf then all moves will be trimmed from zero
+    // to that
+    // value.
+    void m105MaxDistanceOverride(Af const &units) override {
+        copyOnlyFinite(units, maxDistance_);
+        scAssert(all(gt(maxDistance_, axZero<Af>())));
+    }
+
     void error(size_t pos, const char *line, const char *reason) override {
         *printer_ << "Error: " << reason << " at " << pos << " in " << line << "\n";
     }
@@ -157,9 +174,11 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
 
     Af const &homingVelocity() const { return homingVel_; }
 
+    Af const &maxDistance() const { return maxDistance_; }
+
     int32_t ticksPerSecond() const { return ticksPerSec_; }
 
-    std::vector<Sg> const &segments() const { return segments_; }
+    Sgs const &segments() const { return segments_; }
 
     std::vector<Ai> const &path() const { return path_; }
 
@@ -167,9 +186,9 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
 
     void clearAll() {
         executor_->stop();
-        segments_ = move(std::vector<Sg>());
+        segments_ = move(Sgs());
         path_ = move(std::vector<Ai>());
-        executor_->setSegments(move(std::vector<Sg>()));
+        executor_->setSegments(move(Sgs()));
     }
 
   private:
@@ -186,7 +205,7 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
         }
         auto lastPosition = path_.back();
 
-        PathToTrajectoryConverter<AxesSize> trajGen;
+        PathToTrajectoryConverter<AxesTraits::size> trajGen;
         trajGen.setMaxVelocity(maxVelocity());
         trajGen.setMaxAcceleration(maxAcceleration());
         trajGen.setPath(move(path_));
@@ -195,21 +214,22 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesSize> {
         path_.clear();
         path_.push_back(lastPosition);
 
-        TrajectoryToSegmentsConverter<AxesSize> segGen;
+        TrajectoryToSegmentsConverter<AxesTraits::size> segGen;
         segGen.setPath(move(trajGen.path()));
         segGen.setBlendDurations(move(trajGen.blendDurations()));
         segGen.setDurations(move(trajGen.durations()));
         segGen.update(segments_);
     }
 
-    ISegmentsExecutor<AxesSize> *executor_;
-    std::vector<Sg> segments_;
+    ISegmentsExecutor<AxesTraits> *executor_;
+    Sgs segments_;
     std::vector<Ai> path_;
     DistanceMode mode_;
     Af homingVel_;
     Af maxVel_;
     Af maxAcc_;
     Af stepPerUnit_;
+    Af maxDistance_;
     int32_t ticksPerSec_;
     Printer *printer_;
 };

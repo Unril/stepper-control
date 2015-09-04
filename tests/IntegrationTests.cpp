@@ -12,10 +12,13 @@ using namespace std;
 
 namespace {
 
-const size_t AxesSize = 2;
+struct AxTr {
+    static const int size = 2;
+    static const char *names() { return "AB"; }
+};
 
-using Af = Axes<float, AxesSize>;
-using Ai = Axes<int32_t, AxesSize>;
+using Af = TAf<AxTr::size>;
+using Ai = TAi<AxTr::size>;
 
 struct MotorMock {
     MotorMock() : current(axZero<Ai>()), dir(axZero<Ai>()) {}
@@ -51,9 +54,9 @@ struct TickerMock {
 struct Integration_Should : Test {
     MotorMock mm;
     TickerMock tm;
-    SegmentsExecutor<AxesSize, MotorMock, TickerMock> executor;
-    GCodeInterpreter<AxesSize> interpreter;
-    GCodeParser<AxesSize> parser;
+    SegmentsExecutor<MotorMock, TickerMock, AxTr> executor;
+    GCodeInterpreter<AxTr> interpreter;
+    GCodeParser<AxTr> parser;
 
     Integration_Should() : executor(&mm, &tm), interpreter(&executor), parser(&interpreter) {
         interpreter.setTicksPerSecond(100000);

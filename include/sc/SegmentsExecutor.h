@@ -6,17 +6,17 @@ namespace StepperControl {
 
 // Starts timer and generates steps using provided linear or parabolic segments.
 // Uses modified Bresenham's line drawing algorithm.
-template <size_t AxesSize, typename TMotor, typename TTicker>
-class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
+template <typename TMotor, typename TTicker, typename AxesTraits = DefaultAxesTraits>
+class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
   public:
-    using Sg = Segment<AxesSize>;
-    using Segments = std::vector<Sg>;
-    using Ai = Axes<int32_t, AxesSize>;
+    using Ai = TAi<AxesTraits::size>;
+    using Sg = TSg<AxesTraits::size>;
+    using Sgs = TSgs<AxesTraits::size>;
     using Callback = void (*)(void *);
 
     SegmentsExecutor(TMotor *motor, TTicker *ticker)
         : running_(false), homing_(false), motor_(motor), ticker_(ticker), position_(axZero<Ai>()),
-          ticksPerSecond_(1), onStopped_(nullptr, nullptr) {
+          ticksPerSecond_(1), onStarted_(nullptr, nullptr), onStopped_(nullptr, nullptr) {
         scAssert(motor_ && ticker_);
         it_ = segments_.end();
     }
@@ -28,17 +28,17 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
         ticksPerSecond_ = ticksPerSecond;
     }
 
-    void setSegments(Segments const &segments) override {
+    void setSegments(Sgs const &segments) override {
         segments_ = segments;
         it_ = segments_.end();
     }
 
-    void setSegments(Segments &&segments) override {
+    void setSegments(Sgs &&segments) override {
         segments_ = move(segments);
         it_ = segments_.end();
     }
 
-    Segments const &segments() const { return segments_; }
+    Sgs const &segments() const { return segments_; }
 
     void setOnStarted(Callback func, void *payload) { onStarted_ = std::make_pair(func, payload); }
 
@@ -73,7 +73,7 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
                 tick0();
 
                 // Check end switch for every axis and stop if hit.
-                for (size_t i = 0; i < AxesSize; i++) {
+                for (size_t i = 0; i < AxesTraits::size; i++) {
                     if (motor_->checkEndSwitchHit(i)) {
                         it_->velocity[i] = 0;
                     }
@@ -186,11 +186,11 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesSize> {
     }
 
     // All axes were integrated.
-    FORCE_INLINE void tickI(UIntConst<AxesSize>) {}
+    FORCE_INLINE void tickI(UIntConst<AxesTraits::size>) {}
 
     bool running_, homing_;
-    typename Segments::iterator it_;
-    Segments segments_;
+    typename Sgs::iterator it_;
+    Sgs segments_;
     TMotor *motor_;
     TTicker *ticker_;
     Ai position_;

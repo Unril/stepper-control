@@ -29,13 +29,15 @@ m101MaxAccelerationOverride = [axesFloat] "\n"
 m102StepsPerUnitLengthOverride = [axesFloat] "\n"
 m103HomingVelocityOverride = [axesFloat] "\n"
 m104PrintInfo = "\n"
+m105MaxDistanceOverride = [axesFloat] "\n"
 
 linearMove = axesWithFeedrate "\n"
 feedrateOverride = feedrate "\n"
 gCommand = "G" integer ( g0RapidMove | g1LinearMove | g4Wait | g28RunHomingCycle |
     g90AbsoluteDistanceMode | g91RelativeDistanceMode )
 mCommand = "M" integer ( m100MaxVelocityOverride | m101MaxAccelerationOverride |
-    m102StepsPerUnitLengthOverride | m103HomingVelocityOverride | m104PrintInfo)
+    m102StepsPerUnitLengthOverride | m103HomingVelocityOverride | m104PrintInfo |
+    m105MaxDistanceOverride)
 start = "~" "\n"
 stop = "!" "\n"
 clearCommandsBuffer = "^" "\n"
@@ -43,12 +45,12 @@ printCurrentPosition = "?" "\n"
 line = ( start | stop | | clearCommandsBuffer | printCurrentPosition |
     linearMove | feedrateOverride | gCommand | mCommand | "\n" )
 */
-template <size_t AxesSize>
+template <typename AxesTraits = DefaultAxesTraits>
 class GCodeParser {
-    using Af = Axes<float, AxesSize>;
+    using Af = TAf<AxesTraits::size>;
 
   public:
-    explicit GCodeParser(IGCodeInterpreter<AxesSize> *cb)
+    explicit GCodeParser(IGCodeInterpreter<AxesTraits> *cb)
         : errorPos_(std::numeric_limits<size_t>::max()), pos_(nullptr), str_(nullptr), cb_(cb) {
         scAssert(cb);
     }
@@ -65,14 +67,9 @@ class GCodeParser {
     size_t errorPosition() const { return errorPos_; }
 
   private:
-    inline static const char *axesNames() {
-        static_assert(AxesSize <= 9, "Where are at most 9 axes names.");
-        return "ABCUVWXYZ";
-    }
-
     static void updateAxisValue(Af *axes, char name, float value) {
         name = toupper(name);
-        auto axisName = axesNames();
+        auto axisName = AxesTraits::names();
         for (auto axis = axes->begin(); axis != axes->end(); ++axis, ++axisName) {
             if (*axisName == name) {
                 *axis = value;
@@ -315,6 +312,16 @@ class GCodeParser {
         return true;
     }
 
+    bool m105MaxDistanceOverride() {
+        auto dist = axInf<Af>();
+        axesFloat(&dist);
+        if (!expectNewLine()) {
+            return false;
+        }
+        cb_->m105MaxDistanceOverride(dist);
+        return true;
+    }
+
     bool mCommand() {
         if (!isMCommand()) {
             return false;
@@ -335,7 +342,9 @@ class GCodeParser {
         case 103:
             return m103HomingVelocityOverride();
         case 104:
-            return m104PrintInfo();
+            return m104PrintInfo();   
+        case 105:
+            return m105MaxDistanceOverride();
         default:
             error("unknown M command");
             return false;
@@ -418,7 +427,7 @@ class GCodeParser {
         return expectNewLine();
     }
 
-    inline bool expectNewLine() {
+    bool expectNewLine() {
         if (!isNewLine()) {
             error("expect new line");
             return false;
@@ -427,39 +436,39 @@ class GCodeParser {
         return true;
     }
 
-    inline bool isGCommand() const { return toupper(sym()) == 'G'; }
+    bool isGCommand() const { return toupper(sym()) == 'G'; }
 
-    inline bool isMCommand() const { return toupper(sym()) == 'M'; }
+    bool isMCommand() const { return toupper(sym()) == 'M'; }
 
-    inline bool isFeedrate() const { return toupper(sym()) == 'F'; }
+    bool isFeedrate() const { return toupper(sym()) == 'F'; }
 
-    inline bool isPause() const { return toupper(sym()) == 'P'; }
+    bool isPause() const { return toupper(sym()) == 'P'; }
 
-    inline bool isAxis() const { return sym() && strchr(axesNames(), toupper(sym())); }
+    bool isAxis() const { return sym() && strchr(AxesTraits::names(), toupper(sym())); }
 
-    inline bool isDigit() const { return isdigit(sym()) != 0; }
+    bool isDigit() const { return isdigit(sym()) != 0; }
 
-    inline bool isSign() const { return sym() == '-' || sym() == '+'; }
+    bool isSign() const { return sym() == '-' || sym() == '+'; }
 
-    inline bool isNewLine() const { return sym() == '\n'; }
+    bool isNewLine() const { return sym() == '\n'; }
 
-    inline bool isSpace() const { return sym() == ' ' || sym() == '\t' || sym() == '\r'; }
+    bool isSpace() const { return sym() == ' ' || sym() == '\t' || sym() == '\r'; }
 
-    inline bool isStart() const { return sym() == '~'; }
+    bool isStart() const { return sym() == '~'; }
 
-    inline bool isStop() const { return sym() == '!'; }
+    bool isStop() const { return sym() == '!'; }
 
-    inline bool isClear() const { return sym() == '^'; }
+    bool isClear() const { return sym() == '^'; }
 
-    inline bool isInfo() const { return sym() == '?'; }
+    bool isInfo() const { return sym() == '?'; }
 
-    inline void skipSpaces() {
+    void skipSpaces() {
         while (isSpace()) {
             ++pos_;
         }
     }
 
-    inline void nextsym() {
+    void nextsym() {
         if (sym() == 0) {
             error("expect symbol");
         }
@@ -467,9 +476,9 @@ class GCodeParser {
         skipSpaces();
     }
 
-    inline char sym() const { return *pos_; }
+    char sym() const { return *pos_; }
 
-    inline void error(const char *reason) {
+    void error(const char *reason) {
         errorPos_ = pos_ - str_;
         cb_->error(errorPos_, str_, reason);
     }
@@ -477,6 +486,6 @@ class GCodeParser {
     size_t errorPos_;
     const char *pos_;
     const char *str_;
-    IGCodeInterpreter<AxesSize> *cb_;
+    IGCodeInterpreter<AxesTraits> *cb_;
 };
 }
