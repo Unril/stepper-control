@@ -1,4 +1,3 @@
-
 #include "mbed.h"
 #include "FastIO.h"
 
@@ -7,6 +6,11 @@
 #include <SegmentsExecutor.h>
 
 using namespace StepperControl;
+
+struct TestAxesTraits {
+    static const int size = 5;
+    static const char *names() { return "AXYZB"; }
+};
 
 static Serial pc(SERIAL_TX, SERIAL_RX);
 
@@ -110,14 +114,14 @@ int32_t getTicksPerSecond(size_t sz) {
     }
 }
 
-const size_t axesSize = 5;
+const size_t axesSize = TestAxesTraits::size;
 const int32_t ticksPerSecond = getTicksPerSecond(axesSize);
 const float Pi = 3.14159265358979323846f;
 const int32_t notifyPositionIntervalMs = 200;
 
-static SegmentsExecutor<axesSize, Motor, Ticker> executor(&motor, &ticker);
-static GCodeInterpreter<axesSize> interpreter(&executor);
-static GCodeParser<axesSize> parser(&interpreter);
+static SegmentsExecutor<Motor, Ticker, TestAxesTraits> executor(&motor, &ticker);
+static GCodeInterpreter<TestAxesTraits> interpreter(&executor);
+static GCodeParser<TestAxesTraits> parser(&interpreter);
 
 static char buffer[128];
 

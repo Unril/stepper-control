@@ -402,15 +402,16 @@ inline void copyOnlyFinite(Axes<T, Size> const &src, Axes<T, Size> &dest) {
 template <typename T, size_t Size>
 inline Printer &operator<<(Printer &p, Axes<T, Size> const &a) {
     for (size_t i = 0; i < Size; ++i) {
-        p.print(a[i]);
+        p << a[i];
         if (i != Size - 1) {
-            p.print(", ");
+            p << ", ";
         }
     }
     return p;
 }
 }
 
+#ifndef __MBED__
 namespace std {
 template <typename T, size_t Size>
 inline std::ostream &operator<<(std::ostream &os, StepperControl::Axes<T, Size> const &a) {
@@ -420,3 +421,4 @@ inline std::ostream &operator<<(std::ostream &os, StepperControl::Axes<T, Size> 
     return os << a[Size - 1];
 }
 }
+#endif

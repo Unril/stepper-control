@@ -112,12 +112,14 @@ struct Segment {
 
     friend bool operator!=(Segment const &lhs, Segment const &rhs) { return !(lhs == rhs); }
 
+#ifndef __MBED__
     friend std::ostream &operator<<(std::ostream &os, Segment const &obj) {
         return os << std::endl
                   << "dt: " << obj.dt << " denominator: " << obj.denominator
                   << " velocity: " << obj.velocity << " halfAcceleration: " << obj.acceleration
                   << " error: " << obj.error;
     }
+#endif
 
     int32_t dt;
     Ai acceleration;

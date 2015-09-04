@@ -22,15 +22,19 @@
 					<Add option="-std=c11" />
 					<Add option="-Wextra" />
 					<Add option="-Wall" />
+					<Add option="-fsingle-precision-constant" />
 					<Add option="-fgcse" />
 					<Add option="-fexpensive-optimizations" />
+					<Add option="-fcse-skip-blocks" />
+					<Add option="-fcse-follow-jumps" />
 					<Add option="-fschedule-insns2" />
 					<Add option="-fschedule-insns" />
+					<Add option="-funroll-loops" />
 					<Add option="-fomit-frame-pointer" />
 					<Add option="-fdata-sections" />
 					<Add option="-ffunction-sections" />
 					<Add option="-O3" />
-					<Add option="-g" />
+					<Add option="-g1" />
 					<Add option="-Wno-unused-parameter" />
 					<Add option="-Wno-missing-field-initializers" />
 					<Add option="-fmessage-length=0" />
@@ -51,6 +55,7 @@
 					<Add symbol="__MBED__=1" />
 					<Add symbol="TARGET_FF_ARDUINO" />
 					<Add symbol="TARGET_FF_MORPHO" />
+					<Add symbol="NDEBUG" />
 					<Add directory="." />
 					<Add directory="mbed" />
 					<Add directory="mbed\TARGET_NUCLEO_F401RE" />
@@ -84,7 +89,7 @@
 					<Add option="-fdata-sections" />
 					<Add option="-ffunction-sections" />
 					<Add option="-O3" />
-					<Add option="-g" />
+					<Add option="-g1" />
 					<Add option="-Wno-unused-parameter" />
 					<Add option="-Wno-missing-field-initializers" />
 					<Add option="-fmessage-length=0" />

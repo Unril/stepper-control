@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <cstdint>
+#include <cstdio>
 #include <limits>
 #include <algorithm>
 
@@ -56,9 +57,7 @@ struct UIntConst {};
 struct Printer {
     virtual ~Printer() {}
     virtual void print(int n) { printf("%d", n); }
-    virtual void print(size_t n) { printf("%d", static_cast<int>(n)); }
     virtual void print(float n) { printf("%f", n); }
-    virtual void print(double n) { printf("%f", n); }
     virtual void print(const char *str) { printf("%s", str); }
 
     static Printer *instance() {
@@ -67,19 +66,12 @@ struct Printer {
     }
 };
 
-inline Printer &operator<<(Printer &p, int n) {
-    p.print(n);
-    return p;
-}
-inline Printer &operator<<(Printer &p, size_t n) {
-    p.print(n);
+template<typename T, typename = std::enable_if<std::is_integral<T>::value>>
+inline Printer &operator<<(Printer &p, T n) {
+    p.print(static_cast<int>(n));
     return p;
 }
 inline Printer &operator<<(Printer &p, float n) {
-    p.print(n);
-    return p;
-}
-inline Printer &operator<<(Printer &p, double n) {
     p.print(n);
     return p;
 }

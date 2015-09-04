@@ -77,9 +77,7 @@ class SerialPrinter : public QObject, public Printer {
     explicit SerialPrinter(QSerialPort *port) : QObject(port), port_(port) {}
 
     void print(int n) override { write(n); }
-    void print(size_t n) override { write(n); }
     void print(float n) override { write(n); }
-    void print(double n) override { write(n); }
     void print(const char *str) override { write(str); }
 
     template <typename T>
