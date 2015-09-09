@@ -30,6 +30,7 @@ m102StepsPerUnitLengthOverride = [axesFloat] "\n"
 m103HomingVelocityOverride = [axesFloat] "\n"
 m104PrintInfo = "\n"
 m105MaxDistanceOverride = [axesFloat] "\n"
+m106PrintAxesConfiguration = "\n"
 
 linearMove = axesWithFeedrate "\n"
 feedrateOverride = feedrate "\n"
@@ -37,7 +38,7 @@ gCommand = "G" integer ( g0RapidMove | g1LinearMove | g4Wait | g28RunHomingCycle
     g90AbsoluteDistanceMode | g91RelativeDistanceMode )
 mCommand = "M" integer ( m100MaxVelocityOverride | m101MaxAccelerationOverride |
     m102StepsPerUnitLengthOverride | m103HomingVelocityOverride | m104PrintInfo |
-    m105MaxDistanceOverride)
+    m105MaxDistanceOverride | m106PrintAxesConfiguration)
 start = "~" "\n"
 stop = "!" "\n"
 clearCommandsBuffer = "^" "\n"
@@ -322,6 +323,14 @@ class GCodeParser {
         return true;
     }
 
+    bool m106PrintAxesConfiguration() {
+        if (!expectNewLine()) {
+            return false;
+        }
+        cb_->m106PrintAxesConfiguration();
+        return true;
+    }
+
     bool mCommand() {
         if (!isMCommand()) {
             return false;
@@ -342,9 +351,11 @@ class GCodeParser {
         case 103:
             return m103HomingVelocityOverride();
         case 104:
-            return m104PrintInfo();   
+            return m104PrintInfo();
         case 105:
             return m105MaxDistanceOverride();
+        case 106:
+            return m106PrintAxesConfiguration();
         default:
             error("unknown M command");
             return false;

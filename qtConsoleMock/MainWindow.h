@@ -26,17 +26,13 @@ struct TestAxesTraits {
 class Motor : public QObject {
     Q_OBJECT
   public:
-    explicit Motor(QObject *parent) : QObject(parent) {
-    }
+    explicit Motor(QObject *parent) : QObject(parent) {}
 
     template <size_t i, size_t reverse>
-    void writeDirection(UIntConst<i>, UIntConst<reverse>) {
-    }
+    void writeDirection(UIntConst<i>, UIntConst<reverse>) {}
 
     template <size_t i, size_t edge>
-    void writeStep(UIntConst<i>, UIntConst<edge>) {
-      
-    }
+    void writeStep(UIntConst<i>, UIntConst<edge>) {}
 
     bool checkEndSwitchHit(size_t i) { return true; }
 
@@ -77,15 +73,14 @@ class SerialPrinter : public QObject, public Printer {
     explicit SerialPrinter(QSerialPort *port) : QObject(port), port_(port) {}
 
     void print(int n) override { write(n); }
+    void print(char n) override { write(n); }
     void print(float n) override { write(n); }
-    void print(const char *str) override { write(str); }
+    void print(const char *n) override { write(n); }
 
     template <typename T>
     void write(T n) {
-        Printer::print(n);
-        QByteArray data;
-        QTextStream(&data) << n;
-        port_->write(data);
+        qDebug() << "<<" << n;
+        QTextStream(port_) << n;
     }
 
     QSerialPort *port_;

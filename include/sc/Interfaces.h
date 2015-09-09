@@ -7,7 +7,7 @@
 namespace StepperControl {
 
 struct DefaultAxesTraits {
-    static const int size = 9;
+    static const unsigned size = 9;
     static const char *names() { return "ABCUVWXYZ"; }
 };
 
@@ -57,6 +57,8 @@ class IGCodeInterpreter {
     virtual void m104PrintInfo() const = 0;
 
     virtual void m105MaxDistanceOverride(Af const &vel) = 0;
+
+    virtual void m106PrintAxesConfiguration() = 0;
 
     virtual void error(size_t pos, const char *line, const char *reason) = 0;
 

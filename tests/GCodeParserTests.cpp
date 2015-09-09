@@ -27,6 +27,7 @@ struct GCodeParserCallbacksMock : IGCodeInterpreter<AxTr> {
     MOCK_METHOD1(m102StepsPerUnitLengthOverride, void(Af const &));
     MOCK_METHOD1(m103HomingVelocityOverride, void(Af const &));
     MOCK_METHOD1(m105MaxDistanceOverride, void(Af const &));
+    MOCK_METHOD0(m106PrintAxesConfiguration, void());
     MOCK_METHOD0(start, void());
     MOCK_METHOD0(stop, void());
     MOCK_CONST_METHOD0(printCurrentPosition, void());
@@ -190,6 +191,11 @@ TEST_F(GCodeParser_Should, parse_m105MaxDistanceOverride) {
 
     EXPECT_CALL(cb_, m105MaxDistanceOverride(ElementsAre(inf(), inf(), inf())));
     parse("M105\n");
+}
+
+TEST_F(GCodeParser_Should, parse_m106PrintAxesConfiguration) {
+    EXPECT_CALL(cb_, m106PrintAxesConfiguration());
+    parse("M106\n");
 }
 
 TEST_F(GCodeParser_Should, not_parse_without_line_break) {

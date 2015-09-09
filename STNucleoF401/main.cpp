@@ -30,10 +30,10 @@ static FastOut<PC_3> s2Dir;
 static FastIn<D12> stopButton;
 
 struct Motor {
-    template <size_t i, size_t edge>
+    template <unsigned i, unsigned edge>
     FORCE_INLINE static void writeStep(UIntConst<i>, UIntConst<edge>) {}
 
-    template <size_t i, size_t dir>
+    template <unsigned i, unsigned dir>
     FORCE_INLINE static void writeDirection(UIntConst<i>, UIntConst<dir>) {}
 
     // Stepper 0
@@ -97,7 +97,7 @@ struct Motor {
 static Motor motor;
 static Ticker ticker;
 
-int32_t getTicksPerSecond(size_t sz) {
+int32_t getTicksPerSecond(unsigned sz) {
     switch (sz) {
     case 1:
     case 2:
@@ -114,10 +114,10 @@ int32_t getTicksPerSecond(size_t sz) {
     }
 }
 
-const size_t axesSize = TestAxesTraits::size;
+const unsigned axesSize = TestAxesTraits::size;
 const int32_t ticksPerSecond = getTicksPerSecond(axesSize);
 const float Pi = 3.14159265358979323846f;
-const int32_t notifyPositionIntervalMs = 200;
+const int notifyPositionIntervalMs = 200;
 
 static SegmentsExecutor<Motor, Ticker, TestAxesTraits> executor(&motor, &ticker);
 static GCodeInterpreter<TestAxesTraits> interpreter(&executor);
@@ -163,10 +163,10 @@ int main() {
             try {
                 parser.parseLine(buffer);
             } catch (std::exception const &e) {
-                printf("Exception %s\n", e.what());
+                printf("Exception: %s\n", e.what());
                 interpreter.clearAll();
             } catch (...) {
-                scAssert(!"UnknownException\n");
+                scAssert(!"UnknownException!\n");
             }
         }
 
@@ -181,8 +181,7 @@ int main() {
         if (justStopped) {
             justStopped = false;
 
-            interpreter.printCurrentPosition();
-            printf("Completed\n");
+            interpreter.printCompleted();
         }
     }
 }

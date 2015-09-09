@@ -37,12 +37,22 @@ struct SegmentsExecutorMock : ISegmentsExecutor<AxTr> {
     Sgs seg;
 };
 
+struct PrinterMock : Printer {
+    void print(int n) override { ss << n; }
+    void print(char n) override { ss << n; }
+    void print(float n) override { ss << n; }
+    void print(const char *str) override { ss << str; }
+
+    std::stringstream ss;
+};
+
 struct GCodeInterpreter_Should : Test {
     using Interp = GCodeInterpreter<AxTr>;
     SegmentsExecutorMock se;
+    PrinterMock printer;
     Interp interp;
 
-    GCodeInterpreter_Should() : interp(&se) {}
+    GCodeInterpreter_Should() : interp(&se, &printer) {}
 
     std::vector<Ai> path() { return interp.path(); }
 };
@@ -193,5 +203,28 @@ TEST_F(GCodeInterpreter_Should, trim_distance) {
     interp.linearMove(Af{20, 20}, inf());
     interp.linearMove(Af{-20, -20}, inf());
     EXPECT_THAT(path(), ElementsAre(Ai{0, 0}, Ai{20, 10}, Ai{-20, 0}));
+}
+
+// Responses
+
+TEST_F(GCodeInterpreter_Should, print_current_position) {
+    se.pos = {1, 2};
+    interp.m102StepsPerUnitLengthOverride({10, 100});
+    
+    interp.printCurrentPosition();
+
+    EXPECT_THAT(printer.ss.str(), StrEq("Position: 0.1, 0.02\n"));
+}
+
+TEST_F(GCodeInterpreter_Should, print_completed) {   
+    interp.printCompleted();
+
+    EXPECT_THAT(printer.ss.str(), StrEq("Position: 0, 0\nCompleted\n"));
+}
+
+TEST_F(GCodeInterpreter_Should, print_axes_configuration) {   
+    interp.m106PrintAxesConfiguration();
+
+    EXPECT_THAT(printer.ss.str(), StrEq("AB\n"));
 }
 }

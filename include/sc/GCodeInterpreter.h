@@ -117,27 +117,30 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
     }
 
     void m104PrintInfo() const override {
-        *printer_ << "Max velocity: " << maxVel_ << "\nMax acceleration: " << maxAcc_
-                  << "\nHoming velocity: " << homingVel_
-                  << "\nSteps per unit length: " << stepPerUnit_
-                  << "\nMode: " << (mode_ == DistanceMode::Absolute ? "Absolute" : "Relative")
-                  << "\nTicks per second: " << ticksPerSec_ << "\nPath (" << path_.size() << "): ";
+        *printer_ << "Max velocity: " << maxVel_ << eol << "Max acceleration: " << maxAcc_ << eol
+                  << "Homing velocity: " << homingVel_ << eol
+                  << "Steps per unit length: " << stepPerUnit_ << eol
+                  << "Max distance: " << maxDistance_ << eol
+                  << "Mode: " << (mode_ == DistanceMode::Absolute ? "Absolute" : "Relative") << eol
+                  << "Ticks per second: " << ticksPerSec_ << eol << "Path (" << path_.size()
+                  << "): ";
         for (auto &p : path_) {
-            *printer_ << "\n    " << p;
+            *printer_ << eol << "    " << p;
         }
-        *printer_ << "\n";
+        *printer_ << eol;
     }
 
     // Set max traveling distance in units. If it's not inf then all moves will be trimmed from zero
-    // to that
-    // value.
+    // to that value.
     void m105MaxDistanceOverride(Af const &units) override {
         copyOnlyFinite(units, maxDistance_);
         scAssert(all(gt(maxDistance_, axZero<Af>())));
     }
 
+    void m106PrintAxesConfiguration() override { *printer_ << AxesTraits::names() << eol; }
+
     void error(size_t pos, const char *line, const char *reason) override {
-        *printer_ << "Error: " << reason << " at " << pos << " in " << line << "\n";
+        *printer_ << "Error: " << reason << " at " << pos << " in " << line << eol;
     }
 
     void start() override {
@@ -148,7 +151,12 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
     void stop() override { executor_->stop(); }
 
     void printCurrentPosition() const override {
-        *printer_ << "Position: " << toUnits(executor_->position()) << "\n";
+        *printer_ << "Position: " << toUnits(executor_->position()) << eol;
+    }
+
+    void printCompleted() {
+        printCurrentPosition();
+        *printer_ << "Completed" << eol;
     }
 
     void clearCommandsBuffer() override {

@@ -146,8 +146,7 @@ void MainWindow::executionStarted() {
 void MainWindow::executionStopped() {
     qDebug() << "Execution stopped.";
     statusTimer_->stop();
-    interpreter_->printCurrentPosition();
-    *printer_ << "Completed\n";
+    interpreter_->printCompleted();
 }
 
 void MainWindow::updatePositions() {

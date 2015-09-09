@@ -73,7 +73,7 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
                 tick0();
 
                 // Check end switch for every axis and stop if hit.
-                for (size_t i = 0; i < AxesTraits::size; i++) {
+                for (unsigned i = 0; i < AxesTraits::size; i++) {
                     if (motor_->checkEndSwitchHit(i)) {
                         it_->velocity[i] = 0;
                     }
@@ -121,7 +121,7 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
     }
 
     // Integrate i-th axis.
-    template <size_t i>
+    template <unsigned i>
     FORCE_INLINE void tickI(UIntConst<i>) {
         auto v = it_->velocity[i];
 
