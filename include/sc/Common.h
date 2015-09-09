@@ -5,6 +5,7 @@
 #include <cstdio>
 #include <limits>
 #include <algorithm>
+#include <exception>
 
 namespace StepperControl {
 

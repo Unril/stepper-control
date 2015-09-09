@@ -157,17 +157,8 @@ int main() {
         }
 
         if (pc.readable()) {
-
             fgets(buffer, sizeof(buffer), pc);
-
-            try {
-                parser.parseLine(buffer);
-            } catch (std::exception const &e) {
-                printf("Exception: %s\n", e.what());
-                interpreter.clearAll();
-            } catch (...) {
-                scAssert(!"UnknownException!\n");
-            }
+            parser.parseLine(buffer);
         }
 
         if (timer.read_ms() >= notifyPositionIntervalMs) {

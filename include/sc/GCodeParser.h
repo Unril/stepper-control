@@ -4,6 +4,16 @@
 
 namespace StepperControl {
 
+class ParserException : public std::exception {
+public:
+    explicit ParserException(const char *msg): msg_(msg){}
+
+    const char *what() const throw() override  { return msg_; }
+
+private:
+    const char* msg_;
+};
+
 /*
 Parser accepts input line and calls corresponding callbacks.
 
@@ -498,8 +508,12 @@ class GCodeParser {
         const int buffLen = 128;
         static char buff[buffLen];
         auto pos = static_cast<int>(pos_ - str_);
-        sprintf_s(buff, "%s at %d in %s", reason, pos, str_);
-        throw std::exception(buff);
+        #ifdef __MBED__
+        snprintf(buff, buffLen, "%s at %d in %s", reason, pos, str_);
+        #else
+        sprintf_s(buff, buffLen, "%s at %d in %s", reason, pos, str_);
+        #endif
+        throw ParserException(buff);
     }
 
     const char *pos_;
