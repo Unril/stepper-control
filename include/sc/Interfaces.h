@@ -60,11 +60,13 @@ class IGCodeInterpreter {
 
     virtual void m106PrintAxesConfiguration() = 0;
 
-    virtual void error(size_t pos, const char *line, const char *reason) = 0;
+    virtual void error(const char *reason) = 0;
 
     virtual void start() = 0;
 
     virtual void stop() = 0;
+
+    virtual bool isRunning() const = 0;
 
     virtual void printCurrentPosition() const = 0;
 

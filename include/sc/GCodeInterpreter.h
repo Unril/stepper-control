@@ -137,18 +137,25 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
         scAssert(all(gt(maxDistance_, axZero<Af>())));
     }
 
-    void m106PrintAxesConfiguration() override { *printer_ << AxesTraits::names() << eol; }
-
-    void error(size_t pos, const char *line, const char *reason) override {
-        *printer_ << "Error: " << reason << " at " << pos << " in " << line << eol;
+    void m106PrintAxesConfiguration() override {
+        *printer_ << "Axes: " << AxesTraits::names() << eol;
     }
 
+    void error(const char *reason) override { *printer_ << "Error: " << reason << eol; }
+
     void start() override {
+        if (executor_->isRunning()) {
+            error("already running");
+            return;
+        }
+        executor_->setSegments(move(Sgs()));
         loadSegmentsToExecutor();
         executor_->start();
     }
 
     void stop() override { executor_->stop(); }
+
+    bool isRunning() const override { return executor_->isRunning(); }
 
     void printCurrentPosition() const override {
         *printer_ << "Position: " << toUnits(executor_->position()) << eol;
@@ -160,8 +167,8 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
     }
 
     void clearCommandsBuffer() override {
-        path_.clear();
-        segments_.clear();
+        path_ = move(std::vector<Ai>());
+        segments_ = move(Sgs());
     }
 
     ///////////////////////////////////////////////////////////////////////////
@@ -191,13 +198,6 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
     std::vector<Ai> const &path() const { return path_; }
 
     Af toUnits(Ai const &pos) const { return axCast<float>(pos) / stepPerUnit_; }
-
-    void clearAll() {
-        executor_->stop();
-        segments_ = move(Sgs());
-        path_ = move(std::vector<Ai>());
-        executor_->setSegments(move(Sgs()));
-    }
 
   private:
     void loadSegmentsToExecutor() {

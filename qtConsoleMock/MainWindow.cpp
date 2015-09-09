@@ -108,14 +108,7 @@ void MainWindow::readyRead() {
     }
     qDebug() << ">>" << line.trimmed();
 
-    try {
-        parser_->parseLine(line.data());
-    } catch (std::exception const &e) {
-        *printer_ << "Exception: " << e.what();
-        interpreter_->clearAll();
-    } catch (...) {
-        qDebug() << "Unknown exception!";
-    }
+    parser_->parseLine(line.data());
 }
 
 void MainWindow::statusTimerTimeout() {

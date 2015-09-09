@@ -52,20 +52,25 @@ class GCodeParser {
 
   public:
     explicit GCodeParser(IGCodeInterpreter<AxesTraits> *cb)
-        : errorPos_(std::numeric_limits<size_t>::max()), pos_(nullptr), str_(nullptr), cb_(cb) {
+        : pos_(nullptr), str_(nullptr), cb_(cb) {
         scAssert(cb);
     }
 
-    bool parseLine(const char *str) {
+    void parseLine(const char *str) {
         scAssert(str);
         str_ = str;
         pos_ = str;
-        errorPos_ = std::numeric_limits<size_t>::max();
         skipSpaces();
-        return line() && errorPos_ == std::numeric_limits<size_t>::max();
+        try {
+            line();
+        } catch (std::exception const &e) {
+            cb_->clearCommandsBuffer();
+            cb_->error(e.what());
+        } catch (...) {
+            cb_->clearCommandsBuffer();
+            cb_->error("unknown");
+        }
     }
-
-    size_t errorPosition() const { return errorPos_; }
 
   private:
     static void updateAxisValue(Af *axes, char name, float value) {
@@ -489,12 +494,14 @@ class GCodeParser {
 
     char sym() const { return *pos_; }
 
-    void error(const char *reason) {
-        errorPos_ = pos_ - str_;
-        cb_->error(errorPos_, str_, reason);
+    void error(const char *reason) const {
+        const int buffLen = 128;
+        static char buff[buffLen];
+        auto pos = static_cast<int>(pos_ - str_);
+        sprintf_s(buff, "%s at %d in %s", reason, pos, str_);
+        throw std::exception(buff);
     }
 
-    size_t errorPos_;
     const char *pos_;
     const char *str_;
     IGCodeInterpreter<AxesTraits> *cb_;

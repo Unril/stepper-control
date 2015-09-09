@@ -30,13 +30,14 @@ struct GCodeParserCallbacksMock : IGCodeInterpreter<AxTr> {
     MOCK_METHOD0(m106PrintAxesConfiguration, void());
     MOCK_METHOD0(start, void());
     MOCK_METHOD0(stop, void());
+    MOCK_CONST_METHOD0(isRunning, bool());
     MOCK_CONST_METHOD0(printCurrentPosition, void());
     MOCK_CONST_METHOD0(m104PrintInfo, void());
     MOCK_METHOD0(clearCommandsBuffer, void());
 
-    void error(size_t pos, const char *line, const char *reason) override {
+    void error(const char *reason) override {
         std::stringstream ss;
-        ss << "Error " << reason << " at " << pos << " in " << line;
+        ss << "Error " << reason << std::endl;
         throw std::logic_error(ss.str());
     }
 };
@@ -47,11 +48,7 @@ struct GCodeParser_Should : Test {
     GCodeParserCallbacksMock cb_;
     GCodeParser<AxTr> parser_{&cb_};
 
-    void parse(std::string const &line) {
-        if (!parser_.parseLine(line.c_str())) {
-            throw std::logic_error("Error pos = " + std::to_string(parser_.errorPosition()));
-        }
-    }
+    void parse(std::string const &line) { parser_.parseLine(line.c_str()); }
 };
 
 TEST_F(GCodeParser_Should, parse_empty_line) {

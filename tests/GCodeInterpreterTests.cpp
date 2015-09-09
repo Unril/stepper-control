@@ -225,6 +225,12 @@ TEST_F(GCodeInterpreter_Should, print_completed) {
 TEST_F(GCodeInterpreter_Should, print_axes_configuration) {   
     interp.m106PrintAxesConfiguration();
 
-    EXPECT_THAT(printer.ss.str(), StrEq("AB\n"));
+    EXPECT_THAT(printer.ss.str(), StrEq("Axes: AB\n"));
+}
+
+TEST_F(GCodeInterpreter_Should, print_error) {   
+    interp.error("test");
+
+    EXPECT_THAT(printer.ss.str(), StrEq("Error: test\n"));
 }
 }
