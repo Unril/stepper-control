@@ -56,7 +56,7 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
         ticker_->attach_us(this, &SegmentsExecutor::tick, 1000000 / ticksPerSecond_);
     }
 
-    void tick() {
+    void tick() throw() {
         auto const dt = it_->dt;
         if (dt > 0) {
             // Integrate next interval.
@@ -108,7 +108,7 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
     void setPosition(Ai const &position) override { position_ = position; }
 
   private:
-    FORCE_INLINE void tick0() {
+    FORCE_INLINE void tick0() throw() {
         motor_->begin();
 
         // Update time.
@@ -122,7 +122,7 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
 
     // Integrate i-th axis.
     template <unsigned i>
-    FORCE_INLINE void tickI(UIntConst<i>) {
+    FORCE_INLINE void tickI(UIntConst<i>) throw() {
         auto v = it_->velocity[i];
 
         // Direction.
@@ -186,7 +186,7 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
     }
 
     // All axes were integrated.
-    FORCE_INLINE void tickI(UIntConst<AxesTraits::size>) {}
+    FORCE_INLINE void tickI(UIntConst<AxesTraits::size>) throw() {}
 
     bool running_, homing_;
     typename Sgs::iterator it_;

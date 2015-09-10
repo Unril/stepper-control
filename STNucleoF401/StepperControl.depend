@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1441806342 source:c:\scanner\stepper-control\stnucleof401\main.cpp
+1441888980 source:c:\scanner\stepper-control\stnucleof401\main.cpp
 	"mbed.h"
 	"FastIO.h"
 	<GCodeParser.h>
@@ -622,8 +622,9 @@
 	"TrajectoryToSegmentsConverter.h"
 	"SegmentsExecutor.h"
 
-1441806878 c:\scanner\stepper-control\include\sc\gcodeparser.h
+1441889026 c:\scanner\stepper-control\include\sc\gcodeparser.h
 	"Interfaces.h"
+	<exception>
 
 1441377917 c:\scanner\stepper-control\include\sc\axes.h
 	"Common.h"
@@ -631,15 +632,16 @@
 	<cmath>
 	<cstdint>
 
-1441806860 c:\scanner\stepper-control\include\sc\common.h
+1441889022 c:\scanner\stepper-control\include\sc\common.h
 	<cmath>
 	<cstdint>
 	<cstdio>
 	<limits>
 	<algorithm>
-	<exception>
+	<stdexcept>
+	<string>
 
-1441805623 c:\scanner\stepper-control\include\sc\gcodeinterpreter.h
+1441888560 c:\scanner\stepper-control\include\sc\gcodeinterpreter.h
 	"Interfaces.h"
 	"PathToTrajectoryConverter.h"
 	"TrajectoryToSegmentsConverter.h"
@@ -659,7 +661,7 @@
 1441377465 c:\scanner\stepper-control\include\sc\segment.h
 	"Axes.h"
 
-1441805461 c:\scanner\stepper-control\include\sc\segmentsexecutor.h
+1441889026 c:\scanner\stepper-control\include\sc\segmentsexecutor.h
 	"Interfaces.h"
 
 1434032040 c:\scanner\stepper-control\stnucleof401\fastio.h

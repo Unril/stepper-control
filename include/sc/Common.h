@@ -5,16 +5,13 @@
 #include <cstdio>
 #include <limits>
 #include <algorithm>
-#include <exception>
-
-namespace StepperControl {
 
 #ifdef __MBED__
 #define FORCE_INLINE __attribute__((always_inline))
 #elif defined(_MSC_VER)
 #define FORCE_INLINE __forceinline
 #else
-#define FORCE_INLINE inline
+#error "Compiler isn't supported!"
 #endif
 
 #ifdef NDEBUG
@@ -28,6 +25,9 @@ namespace StepperControl {
 
 #else
 
+#include <stdexcept>
+#include <string>
+
 #define scAssert(_Expression)                                                                      \
     do {                                                                                           \
         if (!(_Expression))                                                                        \
@@ -37,6 +37,8 @@ namespace StepperControl {
 
 #endif /* NDEBUG */
 
+namespace StepperControl {
+
 inline int32_t lTruncTowardZero(float v) { return static_cast<int32_t>(v); }
 
 inline int32_t lTruncTowardInf(float v) {
@@ -44,13 +46,6 @@ inline int32_t lTruncTowardInf(float v) {
 }
 
 inline float inf() { return std::numeric_limits<float>::infinity(); }
-
-template <typename T>
-struct Clamp {
-    Clamp(T minV, T maxV) : minVal(minV), maxVal(maxV) {}
-    T operator()(T val) { return std::min(maxVal, std::max(minVal, val)); }
-    T minVal, maxVal;
-};
 
 template <unsigned i>
 struct UIntConst {};

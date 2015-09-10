@@ -2,6 +2,8 @@
 
 #include "Interfaces.h"
 
+#include <exception>
+
 namespace StepperControl {
 
 class ParserException : public std::exception {

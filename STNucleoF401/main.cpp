@@ -9,7 +9,7 @@ using namespace StepperControl;
 
 struct TestAxesTraits {
     static const int size = 5;
-    static const char *names() { return "AXYZB"; }
+    inline static const char *names() { return "AXYZB"; }
 };
 
 static Serial pc(SERIAL_TX, SERIAL_RX);

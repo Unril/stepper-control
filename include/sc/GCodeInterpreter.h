@@ -6,6 +6,13 @@
 
 namespace StepperControl {
 
+template <typename T>
+struct Clamp {
+    Clamp(T minV, T maxV) : minVal(minV), maxVal(maxV) {}
+    T operator()(T val) { return std::min(maxVal, std::max(minVal, val)); }
+    T minVal, maxVal;
+};
+
 // Interpreter reacts to callbacks from parser and creates commands from them.
 template <typename AxesTraits = DefaultAxesTraits>
 class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {

@@ -166,12 +166,4 @@ TEST_F(Axes_Should, accumulate) {
     EXPECT_THAT(b, Eq(8.f));
 }
 
-TEST_F(Axes_Should, clamp_inplace) {
-    auto a = Af3{10.f, -1.f, 2.f};
-
-    applyInplace(a, Clamp<float>(0.f, 5.f));
-
-    EXPECT_THAT(a, ElementsAre(5.f, 0.f, 2.f));
-}
-
 }
