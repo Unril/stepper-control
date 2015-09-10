@@ -105,7 +105,7 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
 
     Ai const &position() const override { return position_; }
 
-    void setPosition(Ai const &position) override { position_ = position; }
+    void setPosition(Ai const &position = axZero<Ai>()) override { position_ = position; }
 
   private:
     FORCE_INLINE void tick0() throw() {

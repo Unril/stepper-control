@@ -82,6 +82,7 @@ void MainWindow::on_pbConnect_clicked() {
 
     ui_.pbConnect->setEnabled(false);
     ui_.pbDisconnect->setEnabled(true);
+    ui_.pbRefresh->setEnabled(false);
 }
 
 void MainWindow::on_pbDisconnect_clicked() {
@@ -94,21 +95,28 @@ void MainWindow::on_pbDisconnect_clicked() {
 
     ui_.pbConnect->setEnabled(true);
     ui_.pbDisconnect->setEnabled(false);
+    ui_.pbRefresh->setEnabled(true);
 }
 
-void MainWindow::on_pbReset_clicked() {}
+void MainWindow::on_pbReset_clicked() {
+    QDial *dials[] = {ui_.dA, ui_.dX, ui_.dY, ui_.dZ, ui_.dB};
+    for (auto d : dials) {
+        d->setValue(0);
+    }
+
+    executor_->setPosition();
+    interpreter_->printCurrentPosition();
+}
 
 void MainWindow::readyRead() {
-    if (!port_->canReadLine()) {
-        return;
+    while (port_->canReadLine()) {
+        auto line = port_->readLine();
+        if (line.isEmpty()) {
+            continue;
+        }
+        qDebug() << ">>" << line.trimmed();
+        parser_->parseLine(line.data());
     }
-    auto line = port_->readLine();
-    if (line.isEmpty()) {
-        return;
-    }
-    qDebug() << ">>" << line.trimmed();
-
-    parser_->parseLine(line.data());
 }
 
 void MainWindow::statusTimerTimeout() {

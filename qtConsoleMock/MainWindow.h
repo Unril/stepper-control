@@ -79,8 +79,9 @@ class SerialPrinter : public QObject, public Printer {
 
     template <typename T>
     void write(T n) {
-        qDebug() << "<<" << n;
-        QTextStream(port_) << n;
+        QByteArray data;
+        QTextStream(&data) << n;
+        port_->write(data);
     }
 
     QSerialPort *port_;
