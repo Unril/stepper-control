@@ -34,12 +34,16 @@
 					<Add option="-fdata-sections" />
 					<Add option="-ffunction-sections" />
 					<Add option="-O3" />
-					<Add option="-g1" />
+					<Add option="-g" />
 					<Add option="-Wno-unused-parameter" />
 					<Add option="-Wno-missing-field-initializers" />
 					<Add option="-fmessage-length=0" />
 					<Add option="-fno-builtin" />
 					<Add option="-fno-delete-null-pointer-checks" />
+					<Add option="-falign-functions=1" />
+					<Add option="-falign-jumps=1" />
+					<Add option="-falign-loops=1" />
+					<Add option="-falign-labels=1" />
 					<Add symbol="TARGET_NUCLEO_F401RE" />
 					<Add symbol="TARGET_M4" />
 					<Add symbol="TARGET_CORTEX_M" />
@@ -71,7 +75,7 @@
 					<Add directory="mbed-rtos\rtos" />
 				</Compiler>
 				<Cpp>
-					<Add option="-mfloat-abi=softfp" />
+					<Add option="-mfloat-abi=hard" />
 					<Add option="-fno-rtti" />
 					<Add option="-std=gnu++11" />
 					<Add option="-W" />
@@ -89,7 +93,7 @@
 					<Add option="-fdata-sections" />
 					<Add option="-ffunction-sections" />
 					<Add option="-O3" />
-					<Add option="-g1" />
+					<Add option="-g" />
 					<Add option="-Wno-unused-parameter" />
 					<Add option="-Wno-missing-field-initializers" />
 					<Add option="-fmessage-length=0" />
@@ -100,7 +104,6 @@
 					<Add option="-Wa,--gdwarf-2" />
 				</Assembler>
 				<Linker>
-					<Add option="-eb_lib=d" />
 					<Add option="-lstdc++" />
 					<Add option="-eb_start_files" />
 					<Add option="-Wl,--gc-sections" />

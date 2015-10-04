@@ -5,11 +5,12 @@
 #include "TrajectoryToSegmentsConverter.h"
 
 namespace StepperControl {
-
-template <typename T>
+template <typename T = float>
 struct Clamp {
     Clamp(T minV, T maxV) : minVal(minV), maxVal(maxV) {}
+
     T operator()(T val) { return std::min(maxVal, std::max(minVal, val)); }
+
     T minVal, maxVal;
 };
 
@@ -24,15 +25,16 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
 
     explicit GCodeInterpreter(ISegmentsExecutor<AxesTraits> *exec,
                               Printer *printer = Printer::instance())
-        : executor_(exec), mode_(DistanceMode::Absolute), homingVel_(axConst<Af>(0.01f)),
-          maxVel_(axConst<Af>(0.5f)), maxAcc_(axConst<Af>(0.1f)), stepPerUnit_(axConst<Af>(1.f)),
-          maxDistance_(axInf<Af>()), ticksPerSec_(1), printer_(printer) {
+        : executor_(exec), mode_(DistanceMode::Absolute), homingVelUnitsPerSec_(axConst<Af>(0.01f)),
+          maxVelUnitsPerSec_(axConst<Af>(0.5f)), maxAccUnitsPerSec2_(axConst<Af>(0.1f)),
+          stepPerUnit_(axConst<Af>(1.f)), maxDistanceUnits_(axInf<Af>()), ticksPerSec_(1),
+          printer_(printer) {
         scAssert(exec != nullptr);
         scAssert(printer != nullptr);
     }
 
     ///////////////////////////////////////////////////////////////////////////
-    // Callbacks
+    // G Commands
     ///////////////////////////////////////////////////////////////////////////
 
     void feedrateOverride(float) override {}
@@ -51,7 +53,7 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
             if (!std::isfinite(pos)) {
                 continue;
             }
-            auto maxDist = maxDistance_[i];
+            auto maxDist = maxDistanceUnits_[i];
             if (pos > maxDist) {
                 pos = maxDist;
             } else if (std::isfinite(maxDist)) {
@@ -81,53 +83,47 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
     // Ticks per second should be set before this call.
     void g4Wait(float sec) override {
         appendPathToSegments();
-        auto ticks = lround(sec * ticksPerSec_);
+        auto ticks = lround(sec * ticksPerSecond());
         segments_.push_back(Sg(ticks));
     }
 
-    // Homing velocity should be set before this call.
     void g28RunHomingCycle() override {
         appendPathToSegments();
-        segments_.push_back(Sg(homingVel_));
+        segments_.push_back(Sg(homingVelocity()));
     }
 
     void g90g91DistanceMode(DistanceMode mode) override { mode_ = mode; }
 
-    // Ticks per second and steps per unit length should be set before this call.
+    ///////////////////////////////////////////////////////////////////////////
+    // M commands
+    ///////////////////////////////////////////////////////////////////////////
+
     void m100MaxVelocityOverride(Af const &unitsPerSec) override {
-        auto stepsPerTick = unitsPerSec * stepPerUnit_ / static_cast<float>(ticksPerSec_);
-        copyOnlyFinite(stepsPerTick, maxVel_);
-        scAssert(all(gt(maxVel_, axZero<Af>())));
-        applyInplace(maxVel_, Clamp<float>(0, 0.5f));
+        copyOnlyFinite(unitsPerSec, maxVelUnitsPerSec_);
+        scAssert(all(gt(maxVelUnitsPerSec_, axZero<Af>())));
     }
 
-    // Ticks per second and steps per unit length should be set before this call.
     void m101MaxAccelerationOverride(Af const &unitsPerSecSqr) override {
-        auto stepsPerTickSqr =
-            unitsPerSecSqr * stepPerUnit_ / (static_cast<float>(ticksPerSec_) * ticksPerSec_);
-        copyOnlyFinite(stepsPerTickSqr, maxAcc_);
-        scAssert(all(gt(maxAcc_, axZero<Af>())));
+        copyOnlyFinite(unitsPerSecSqr, maxAccUnitsPerSec2_);
+        scAssert(all(gt(maxAccUnitsPerSec2_, axZero<Af>())));
     }
 
-    // Steps per unit length should be set before this call.
     void m102StepsPerUnitLengthOverride(Af const &stepsPerUnit) override {
         copyOnlyFinite(stepsPerUnit, stepPerUnit_);
         scAssert(all(gt(stepPerUnit_, axZero<Af>())));
     }
 
-    // Ticks per second and steps per unit length should be set before this call.
     void m103HomingVelocityOverride(Af const &unitsPerSec) override {
-        auto stepsPerTick = unitsPerSec * stepPerUnit_ / static_cast<float>(ticksPerSec_);
-        copyOnlyFinite(stepsPerTick, homingVel_);
-        scAssert(all(gt(homingVel_, axZero<Af>())));
-        applyInplace(homingVel_, Clamp<float>(0.0f, 0.5f));
+        copyOnlyFinite(unitsPerSec, homingVelUnitsPerSec_);
+        scAssert(all(gt(homingVelUnitsPerSec_, axZero<Af>())));
     }
 
     void m104PrintInfo() const override {
-        *printer_ << "Max velocity: " << maxVel_ << eol << "Max acceleration: " << maxAcc_ << eol
-                  << "Homing velocity: " << homingVel_ << eol
+        *printer_ << "Max velocity: " << maxVelUnitsPerSec_ << eol
+                  << "Max acceleration: " << maxAccUnitsPerSec2_ << eol
+                  << "Homing velocity: " << homingVelUnitsPerSec_ << eol
                   << "Steps per unit length: " << stepPerUnit_ << eol
-                  << "Max distance: " << maxDistance_ << eol
+                  << "Max distance: " << maxDistanceUnits_ << eol
                   << "Mode: " << (mode_ == DistanceMode::Absolute ? "Absolute" : "Relative") << eol
                   << "Ticks per second: " << ticksPerSec_ << eol << "Path (" << path_.size()
                   << "): ";
@@ -140,13 +136,17 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
     // Set max traveling distance in units. If it's not inf then all moves will be trimmed from zero
     // to that value.
     void m105MaxDistanceOverride(Af const &units) override {
-        copyOnlyFinite(units, maxDistance_);
-        scAssert(all(gt(maxDistance_, axZero<Af>())));
+        copyOnlyFinite(units, maxDistanceUnits_);
+        scAssert(all(gt(maxDistanceUnits_, axZero<Af>())));
     }
 
     void m106PrintAxesConfiguration() override {
         *printer_ << "Axes: " << AxesTraits::names() << eol;
     }
+
+    ///////////////////////////////////////////////////////////////////////////
+    // Others
+    ///////////////////////////////////////////////////////////////////////////
 
     void error(const char *reason) override { *printer_ << "Error: " << reason << eol; }
 
@@ -168,7 +168,7 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
         *printer_ << "Position: " << toUnits(executor_->position()) << eol;
     }
 
-    void printCompleted() {
+    void printCompleted() const {
         printCurrentPosition();
         *printer_ << "Completed" << eol;
     }
@@ -188,15 +188,28 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
         executor_->setTicksPerSecond(tps);
     }
 
-    Af const &maxVelocity() const { return maxVel_; }
+    // Steps per tick
+    Af maxVelocity() const {
+        return apply(maxVelUnitsPerSec_ * stepPerUnit_ / static_cast<float>(ticksPerSec_),
+                     Clamp<>(0.0f, 0.5f));
+    }
 
-    Af const &maxAcceleration() const { return maxAcc_; }
+    // Steps per tick per tick
+    Af maxAcceleration() const {
+        return maxAccUnitsPerSec2_ * stepPerUnit_ /
+               (static_cast<float>(ticksPerSec_) * ticksPerSec_);
+    }
 
     Af const &stepsPerUnitLength() const { return stepPerUnit_; }
 
-    Af const &homingVelocity() const { return homingVel_; }
+    // Steps per tick
+    Af homingVelocity() const {
+        return apply(homingVelUnitsPerSec_ * stepPerUnit_ / static_cast<float>(ticksPerSec_),
+                     Clamp<>(0.0f, 0.5f));
+    }
 
-    Af const &maxDistance() const { return maxDistance_; }
+    // Steps
+    Af maxDistance() const { return maxDistanceUnits_ * stepPerUnit_; }
 
     int32_t ticksPerSecond() const { return ticksPerSec_; }
 
@@ -240,11 +253,11 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
     Sgs segments_;
     std::vector<Ai> path_;
     DistanceMode mode_;
-    Af homingVel_;
-    Af maxVel_;
-    Af maxAcc_;
+    Af homingVelUnitsPerSec_;
+    Af maxVelUnitsPerSec_;
+    Af maxAccUnitsPerSec2_;
     Af stepPerUnit_;
-    Af maxDistance_;
+    Af maxDistanceUnits_;
     int32_t ticksPerSec_;
     Printer *printer_;
 };

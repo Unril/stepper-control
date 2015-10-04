@@ -372,9 +372,9 @@ inline Axes<T, Size> &applyInplace(Axes<T, Size> &a, F unaryFunc) {
     return a;
 }
 
-template <typename TOut, typename T, size_t Size, typename F>
-inline Axes<TOut, Size> apply(Axes<T, Size> a, F unaryFunc) {
-    Axes<TOut, Size> res;
+template <typename T, size_t Size, typename F>
+inline auto apply(Axes<T, Size> a, F unaryFunc) ->  Axes<decltype(unaryFunc(T{})), Size>{
+    Axes<decltype(unaryFunc(T{})), Size> res;
     for (size_t i = 0; i < Size; ++i) {
         res[i] = unaryFunc(a[i]);
     }

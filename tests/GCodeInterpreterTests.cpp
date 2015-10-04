@@ -6,9 +6,9 @@ using namespace StepperControl;
 using namespace testing;
 
 namespace {
-
 struct AxTr {
     static const int size = 2;
+
     static const char *names() { return "AB"; }
 };
 
@@ -39,8 +39,11 @@ struct SegmentsExecutorMock : ISegmentsExecutor<AxTr> {
 
 struct PrinterMock : Printer {
     void print(int n) override { ss << n; }
+
     void print(char n) override { ss << n; }
+
     void print(float n) override { ss << n; }
+
     void print(const char *str) override { ss << str; }
 
     std::stringstream ss;
@@ -125,6 +128,42 @@ TEST_F(GCodeInterpreter_Should, override_max_velocities) {
     EXPECT_THAT(interp.maxVelocity(), ElementsAre(0.01f, 0.08f));
 }
 
+TEST_F(GCodeInterpreter_Should, override_max_accelerations_before_ticks_per_second) {
+    interp.m101MaxAccelerationOverride(Af{1000.f, 100.f});
+
+    interp.setTicksPerSecond(10);
+    interp.m102StepsPerUnitLengthOverride(Af{1.f, 2.f});
+
+    EXPECT_THAT(interp.maxAcceleration(), ElementsAre(10.f, 2.f));
+}
+
+TEST_F(GCodeInterpreter_Should, override_max_velocities_before_ticks_per_second) {
+    interp.m100MaxVelocityOverride(Af{100.f, 400.f});
+
+    interp.setTicksPerSecond(10000);
+    interp.m102StepsPerUnitLengthOverride(Af{1.f, 2.f});
+
+    EXPECT_THAT(interp.maxVelocity(), ElementsAre(0.01f, 0.08f));
+}
+
+TEST_F(GCodeInterpreter_Should, override_homing_velocity) {
+    interp.setTicksPerSecond(10000);
+    interp.m102StepsPerUnitLengthOverride(Af{1.f, 2.f});
+
+    interp.m103HomingVelocityOverride(Af{10.f, 40.f});
+
+    EXPECT_THAT(interp.homingVelocity(), ElementsAre(0.001f, 0.008f));
+}
+
+TEST_F(GCodeInterpreter_Should, override_homing_velocity_before_ticks_per_second) {
+    interp.m103HomingVelocityOverride(Af{10.f, 40.f});
+
+    interp.setTicksPerSecond(10000);
+    interp.m102StepsPerUnitLengthOverride(Af{1.f, 2.f});
+
+    EXPECT_THAT(interp.homingVelocity(), ElementsAre(0.001f, 0.008f));
+}
+
 TEST_F(GCodeInterpreter_Should, override_only_valid_max_velocities) {
     interp.m100MaxVelocityOverride(Af{inf(), 0.3f});
     EXPECT_THAT(interp.maxVelocity(), ElementsAre(0.5f, 0.3f));
@@ -197,6 +236,14 @@ TEST_F(GCodeInterpreter_Should, move_and_wait) {
     EXPECT_THAT(se.seg, ContainerEq(expected));
 }
 
+TEST_F(GCodeInterpreter_Should, set_max_distance) {
+    interp.m105MaxDistanceOverride(Af{2.f, 30.f});
+
+    interp.m102StepsPerUnitLengthOverride({1.f, 10.f});
+
+    EXPECT_THAT(interp.maxDistance(), ElementsAre(2.f, 300.f));
+}
+
 TEST_F(GCodeInterpreter_Should, trim_distance) {
     interp.m105MaxDistanceOverride(Af{inf(), 10.f});
 
@@ -210,25 +257,25 @@ TEST_F(GCodeInterpreter_Should, trim_distance) {
 TEST_F(GCodeInterpreter_Should, print_current_position) {
     se.pos = {1, 2};
     interp.m102StepsPerUnitLengthOverride({10, 100});
-    
+
     interp.printCurrentPosition();
 
     EXPECT_THAT(printer.ss.str(), StrEq("Position: 0.1, 0.02\n"));
 }
 
-TEST_F(GCodeInterpreter_Should, print_completed) {   
+TEST_F(GCodeInterpreter_Should, print_completed) {
     interp.printCompleted();
 
     EXPECT_THAT(printer.ss.str(), StrEq("Position: 0, 0\nCompleted\n"));
 }
 
-TEST_F(GCodeInterpreter_Should, print_axes_configuration) {   
+TEST_F(GCodeInterpreter_Should, print_axes_configuration) {
     interp.m106PrintAxesConfiguration();
 
     EXPECT_THAT(printer.ss.str(), StrEq("Axes: AB\n"));
 }
 
-TEST_F(GCodeInterpreter_Should, print_error) {   
+TEST_F(GCodeInterpreter_Should, print_error) {
     interp.error("test");
 
     EXPECT_THAT(printer.ss.str(), StrEq("Error: test\n"));

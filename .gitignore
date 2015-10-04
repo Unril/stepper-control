@@ -36,3 +36,10 @@
 /qtConsoleMock/GeneratedFiles
 /qtConsoleMock/x64/Release/qtConsoleMock.tlog
 /tests/x64/Release/StepperC.2276AED7.tlog
+/_ReSharper.Caches/ReSharperPlatformVs124.StepperControlTests
+/x64/Debug
+/qtConsoleMock/x64
+*.suo
+*.user
+*.pdb
+/tests/x64/Release/StepperControlTests.log

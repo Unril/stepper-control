@@ -138,16 +138,14 @@ int main() {
 
     interpreter.setTicksPerSecond(ticksPerSecond);
 
-    interpreter.m102StepsPerUnitLengthOverride(axConst<axesSize>(3200.f));
-
     auto perRot = 1.f / (2.f * Pi);
-    interpreter.m102StepsPerUnitLengthOverride({20 * 6400 * perRot, 6400.f / 5, 20 * 6400 * perRot,
-                                                10 * 6400 * perRot, 10 * 6400 * perRot});
+    auto spu = 10000.f / 5.f;
+    interpreter.m102StepsPerUnitLengthOverride({spu, spu, spu, spu, spu}); // ??? TODO: why it does not affect vel an acc?
 
-    auto rotVel = 0.5f;
-    auto rotAcc = 0.5f;
-    interpreter.m100MaxVelocityOverride({rotVel, 50.f, rotVel, rotVel, rotVel});
-    interpreter.m101MaxAccelerationOverride({rotAcc, 100.f, rotAcc, rotAcc, rotAcc});
+    auto rotVel = 20.f;
+    auto rotAcc = 40.f;
+    interpreter.m100MaxVelocityOverride({rotVel, rotVel, rotVel, rotVel, rotVel});
+    interpreter.m101MaxAccelerationOverride({rotAcc, rotAcc, rotAcc, rotAcc, rotAcc});
 
     timer.start();
 
