@@ -1,5 +1,8 @@
 #include "stdafx.h"
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include "../include/sc/GCodeInterpreter.h"
 
 using namespace StepperControl;
@@ -279,5 +282,40 @@ TEST_F(GCodeInterpreter_Should, print_error) {
     interp.error("test");
 
     EXPECT_THAT(printer.ss.str(), StrEq("Error: test\n"));
+}
+
+TEST_F(GCodeInterpreter_Should, set_negative_spu) {
+    interp.m102StepsPerUnitLengthOverride(Af{-200, -400});
+    interp.linearMove(Af{0.1f, 2.5f}, inf());
+    EXPECT_THAT(path(), ElementsAre(Ai{0, 0}, Ai{-20, -1000}));
+}
+
+TEST_F(GCodeInterpreter_Should, add_relative_positions_with_negative_spu) {
+    interp.m102StepsPerUnitLengthOverride(Af{1, -1});
+    interp.g90g91DistanceMode(DistanceMode::Relative);
+    interp.linearMove(Af{10, 100}, inf());
+    interp.linearMove(Af{20, inf()}, inf());
+    interp.linearMove(Af{inf(), 200}, inf());
+    interp.linearMove(Af{10, 100}, inf());
+    EXPECT_THAT(path(),
+                ElementsAre(Ai{0, 0}, Ai{10, -100}, Ai{30, -100}, Ai{30, -300}, Ai{40, -400}));
+}
+
+TEST_F(GCodeInterpreter_Should, trim_max_velocity_to_minus_one_half_with_negative_spu) {
+    interp.setTicksPerSecond(1000);
+    interp.m102StepsPerUnitLengthOverride(Af{-1.f, -2.f});
+
+    interp.m100MaxVelocityOverride(Af{100.f, 400.f});
+
+    EXPECT_THAT(interp.maxVelocity(), ElementsAre(-0.1f, -0.5f));
+}
+
+TEST_F(GCodeInterpreter_Should, trim_max_homing_velocity_to_minus_one_half_with_negative_spu) {
+    interp.setTicksPerSecond(1000);
+    interp.m102StepsPerUnitLengthOverride(Af{-1.f, -2.f});
+
+    interp.m103HomingVelocityOverride(Af{100.f, 400.f});
+
+    EXPECT_THAT(interp.homingVelocity(), ElementsAre(-0.1f, -0.5f));
 }
 }

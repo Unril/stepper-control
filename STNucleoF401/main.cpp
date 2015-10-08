@@ -140,7 +140,7 @@ int main() {
 
     auto perRot = 1.f / (2.f * Pi);
     auto spu = 10000.f / 5.f;
-    interpreter.m102StepsPerUnitLengthOverride({spu, spu, spu, spu, spu}); // ??? TODO: why it does not affect vel an acc?
+    interpreter.m102StepsPerUnitLengthOverride({spu, spu, spu, spu, spu});
 
     auto rotVel = 20.f;
     auto rotAcc = 40.f;

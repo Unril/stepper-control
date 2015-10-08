@@ -125,6 +125,7 @@
 		<Unit filename="..\include\sc\Common.h" />
 		<Unit filename="..\include\sc\GCodeInterpreter.h" />
 		<Unit filename="..\include\sc\GCodeParser.h" />
+		<Unit filename="..\include\sc\Interfaces.h" />
 		<Unit filename="..\include\sc\PathToTrajectoryConverter.h" />
 		<Unit filename="..\include\sc\Segment.h" />
 		<Unit filename="..\include\sc\SegmentsExecutor.h" />

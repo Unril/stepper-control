@@ -14,6 +14,11 @@ struct Clamp {
     T minVal, maxVal;
 };
 
+template <typename T>
+inline Clamp<T> clamp(T minV, T maxV) {
+    return Clamp<T>(minV, maxV);
+}
+
 // Interpreter reacts to callbacks from parser and creates commands from them.
 template <typename AxesTraits = DefaultAxesTraits>
 class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
@@ -108,9 +113,10 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
         scAssert(all(gt(maxAccUnitsPerSec2_, axZero<Af>())));
     }
 
+    // Can be negative.
     void m102StepsPerUnitLengthOverride(Af const &stepsPerUnit) override {
         copyOnlyFinite(stepsPerUnit, stepPerUnit_);
-        scAssert(all(gt(stepPerUnit_, axZero<Af>())));
+        scAssert(all(neq(stepPerUnit_, axZero<Af>())));
     }
 
     void m103HomingVelocityOverride(Af const &unitsPerSec) override {
@@ -119,11 +125,11 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
     }
 
     void m104PrintInfo() const override {
-        *printer_ << "Max velocity: " << maxVelUnitsPerSec_ << eol
-                  << "Max acceleration: " << maxAccUnitsPerSec2_ << eol
-                  << "Homing velocity: " << homingVelUnitsPerSec_ << eol
-                  << "Steps per unit length: " << stepPerUnit_ << eol
-                  << "Max distance: " << maxDistanceUnits_ << eol
+        *printer_ << "Max velocity: " << maxVelUnitsPerSec_ << " (" << maxVelocity() << ")" << eol
+                  << "Max acceleration: " << maxAccUnitsPerSec2_ << " (" << maxAcceleration() << ")"
+                  << eol << "Homing velocity: " << homingVelUnitsPerSec_ << " (" << homingVelocity()
+                  << ")" << eol << "Steps per unit length: " << stepPerUnit_ << eol
+                  << "Max distance: " << maxDistanceUnits_ << " (" << maxDistance() << ")" << eol
                   << "Mode: " << (mode_ == DistanceMode::Absolute ? "Absolute" : "Relative") << eol
                   << "Ticks per second: " << ticksPerSec_ << eol << "Path (" << path_.size()
                   << "): ";
@@ -191,7 +197,7 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
     // Steps per tick
     Af maxVelocity() const {
         return apply(maxVelUnitsPerSec_ * stepPerUnit_ / static_cast<float>(ticksPerSec_),
-                     Clamp<>(0.0f, 0.5f));
+                     clamp(-0.5f, 0.5f));
     }
 
     // Steps per tick per tick
@@ -205,7 +211,7 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
     // Steps per tick
     Af homingVelocity() const {
         return apply(homingVelUnitsPerSec_ * stepPerUnit_ / static_cast<float>(ticksPerSec_),
-                     Clamp<>(0.0f, 0.5f));
+                     clamp(-0.5f, 0.5f));
     }
 
     // Steps

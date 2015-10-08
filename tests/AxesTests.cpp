@@ -1,5 +1,8 @@
 #include "stdafx.h"
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include "../include/sc/Axes.h"
 
 using namespace StepperControl;

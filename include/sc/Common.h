@@ -8,8 +8,10 @@
 
 #ifdef __MBED__
 #define FORCE_INLINE __attribute__((always_inline))
+#define RESTRICT __restrict__
 #elif defined(_MSC_VER)
 #define FORCE_INLINE __forceinline
+#define RESTRICT
 #else
 #error "Compiler isn't supported!"
 #endif

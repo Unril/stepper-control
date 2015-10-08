@@ -1,5 +1,8 @@
 #include "stdafx.h"
 
+#include <gmock/gmock.h>
+#include <gtest/gtest.h>
+
 #include "../include/sc/PathToTrajectoryConverter.h"
 
 using namespace StepperControl;
