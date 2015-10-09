@@ -1,5 +1,5 @@
 # depslib dependency file v1.0
-1443989546 source:c:\scanner\stepper-control\stnucleof401\main.cpp
+1444409080 source:c:\scanner\stepper-control\stnucleof401\main.cpp
 	"mbed.h"
 	"FastIO.h"
 	<GCodeParser.h>
@@ -661,10 +661,11 @@
 1441377465 c:\scanner\stepper-control\include\sc\segment.h
 	"Axes.h"
 
-1444304037 c:\scanner\stepper-control\include\sc\segmentsexecutor.h
+1444403053 c:\scanner\stepper-control\include\sc\segmentsexecutor.h
 	"Interfaces.h"
+	<atomic>
 
-1434032040 c:\scanner\stepper-control\stnucleof401\fastio.h
+1444400431 c:\scanner\stepper-control\stnucleof401\fastio.h
 	"mbed.h"
 	"pinmap.h"
 

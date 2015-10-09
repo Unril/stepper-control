@@ -7,7 +7,8 @@ PointerAlignment: Right
 ColumnLimit: 100
 Standard: Cpp11
 UseTab: Never
-AllowShortIfStatementsOnASingleLine: false
 AlwaysBreakTemplateDeclarations: true
 Cpp11BracedListStyle: true
 ExperimentalAutoDetectBinPacking: true
+AllowShortIfStatementsOnASingleLine: false
+AllowShortLoopsOnASingleLine: false
