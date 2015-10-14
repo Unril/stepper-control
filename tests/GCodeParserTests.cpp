@@ -281,4 +281,25 @@ TEST_F(GCodeParser_Should, printInfo) {
 TEST_F(GCodeParser_Should, not_printInfo_if_no_line_end) {
     EXPECT_THROW(parse("m104"), std::logic_error);
 }
+
+TEST_F(GCodeParser_Should, parse_axes_written_together) {
+    EXPECT_CALL(cb_, linearMove(ElementsAre(10.f, 20.f, 30.f), Eq(inf())));
+    parse("a10b20c30\n");
+}
+
+TEST_F(GCodeParser_Should, parse_axes_in_differen_order) {
+    EXPECT_CALL(cb_, linearMove(ElementsAre(10.f, 20.f, 30.f), Eq(inf())));
+    parse("c30b20a10\n");
+}
+
+TEST_F(GCodeParser_Should, parse_lines_with_axes_written_together) {
+    Sequence s;
+    EXPECT_CALL(cb_, linearMove(ElementsAre(0.f, 10.f, inf()), Eq(inf()))).Times(1).InSequence(s);
+    EXPECT_CALL(cb_, linearMove(ElementsAre(1.f, 10.f, inf()), Eq(inf()))).Times(1).InSequence(s);
+    EXPECT_CALL(cb_, linearMove(ElementsAre(0.f, 0.f, inf()), Eq(inf()))).Times(1).InSequence(s);
+
+    parse("a0b10\n");
+    parse("a1b10\n");
+    parse("a0b0\n");
+}
 }

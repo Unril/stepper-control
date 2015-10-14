@@ -3,15 +3,20 @@
 #include "Interfaces.h"
 
 namespace StepperControl {
+template <unsigned i>
+struct StepperNumber {
+    static const unsigned value = i;
+};
 
 // Starts timer and generates steps using provided linear or parabolic segments.
 // Uses modified Bresenham's line drawing algorithm.
 template <typename TMotor, typename TTicker, typename AxesTraits = DefaultAxesTraits>
 class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
   public:
-    using Ai = TAi<AxesTraits::size>;
-    using Sg = TSg<AxesTraits::size>;
-    using Sgs = TSgs<AxesTraits::size>;
+    static const unsigned size = AxesTraits::size;
+    using Ai = TAi<size>;
+    using Sg = TSg<size>;
+    using Sgs = TSgs<size>;
     using Callback = void (*)(void *);
 
     SegmentsExecutor(TMotor *motor, TTicker *ticker)
@@ -78,7 +83,6 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
                         it_->velocity[i] = 0;
                     }
                 }
-
             } else {
                 // Stop and reset position when all switches are hit.
                 it_->dt = 0;
@@ -114,79 +118,61 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
         // Update time.
         --it_->dt;
 
-        tickI(UIntConst<0>());
+        // Dir and step writing are separated by error updates to provide delay between them.
+        writeDir(StepperNumber<0>{});
+        bool stepRising[size];
+        updateError(StepperNumber<0>{}, stepRising);
+        writeStep(StepperNumber<0>{}, stepRising);
 
         // Notify motor about integration end.
         motor_->end();
     }
 
+    template <unsigned i>
+    FORCE_INLINE void writeDir(StepperNumber<i>) throw() {
+        motor_->writeDirection(StepperNumber<i>{}, it_->velocity[i] < 0);
+        writeDir(StepperNumber<i + 1>{});
+    }
+
+    FORCE_INLINE void writeDir(StepperNumber<size>) throw() {}
+
     // Integrate i-th axis.
     template <unsigned i>
-    FORCE_INLINE void tickI(UIntConst<i>) throw() {
+    FORCE_INLINE void updateError(StepperNumber<i>, bool(&stepRising)[size]) throw() {
         auto v = it_->velocity[i];
+        auto error = it_->error[i];
 
-        // Direction.
-        if (v >= 0) {
-            // Positive or zero slope.
-            motor_->writeDirection(UIntConst<i>(), UIntConst<0>());
+        // Update difference between rounded and actual position.
+        error += v;
+        v += it_->acceleration[i];
 
-            auto const denominator = it_->denominator;
-            auto error = it_->error[i];
-
-            // Update difference between rounded and actual position.
-            error += v;
-
-            v += it_->acceleration[i];
-
-            it_->velocity[i] = v;
-
-            // error >= 0.5
-            if (2 * error >= denominator) {
-                // error -= 1
-                error -= denominator;
-                // Rising edge.
-                ++position_[i];
-                motor_->writeStep(UIntConst<i>(), UIntConst<1>());
-            } else {
-                // Falling edge.
-                motor_->writeStep(UIntConst<i>(), UIntConst<0>());
-            }
-            it_->error[i] = error;
-        } else {
-            // Negative slope.
-            motor_->writeDirection(UIntConst<i>(), UIntConst<1>());
-
-            // Duplicate code to make delay between direction and step writes.
-            auto const denominator = it_->denominator;
-            auto error = it_->error[i];
-
-            // Update difference between rounded and actual position.
-            error += v;
-
-            v += it_->acceleration[i];
-
-            it_->velocity[i] = v;
-
-            // error <= -0.5
-            if (-2 * error >= denominator) {
-                // error += 1
-                error += denominator;
-                // Rising edge.
-                --position_[i];
-                motor_->writeStep(UIntConst<i>(), UIntConst<1>());
-            } else {
-                // Falling edge.
-                motor_->writeStep(UIntConst<i>(), UIntConst<0>());
-            }
-            it_->error[i] = error;
+        int sign = v >= 0 ? 1 : -1;
+        // +1 -- positive or zero slope; -1 -- negative slope.
+        //       error >= 0.5                  error <= -0.5
+        if ((stepRising[i] = (2 * sign * error >= it_->denominator))) {
+            //   error -= 1                    error += 1
+            error -= it_->denominator * sign;
+            // Rising edge.
+            position_[i] += sign;
         }
 
+        it_->velocity[i] = v;
+        it_->error[i] = error;
+
         // Integrate next axis.
-        tickI(UIntConst<i + 1>());
+        updateError(StepperNumber<i + 1>{}, stepRising);
     }
 
     // All axes were integrated.
-    FORCE_INLINE void tickI(UIntConst<AxesTraits::size>) throw() {}
+    FORCE_INLINE void updateError(StepperNumber<size>, bool[size]) throw() {}
+
+    template <unsigned i>
+    FORCE_INLINE void writeStep(StepperNumber<i>, bool(&stepRising)[size]) throw() {
+        motor_->writeStep(StepperNumber<i>{}, stepRising[i]);
+        writeStep(StepperNumber<i + 1>{}, stepRising);
+    }
+
+    FORCE_INLINE void writeStep(StepperNumber<size>, bool[size]) throw() {}
 
     bool running_, homing_;
     typename Sgs::iterator it_;

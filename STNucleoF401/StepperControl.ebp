@@ -104,8 +104,10 @@
 					<Add option="-Wa,--gdwarf-2" />
 				</Assembler>
 				<Linker>
+					<Add option="-eb_lib=d" />
 					<Add option="-lstdc++" />
 					<Add option="-eb_start_files" />
+					<Add option="-Wl,--warn-section-align" />
 					<Add option="-Wl,--gc-sections" />
 					<Add option="-flto" />
 					<Add option="-Wl,--wrap,main" />

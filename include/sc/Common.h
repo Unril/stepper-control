@@ -49,9 +49,6 @@ inline int32_t lTruncTowardInf(float v) {
 
 inline float inf() { return std::numeric_limits<float>::infinity(); }
 
-template <unsigned i>
-struct UIntConst {};
-
 const char eol = '\n';
 
 struct Printer {

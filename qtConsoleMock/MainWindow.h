@@ -28,11 +28,11 @@ class Motor : public QObject {
   public:
     explicit Motor(QObject *parent) : QObject(parent) {}
 
-    template <size_t i, size_t reverse>
-    void writeDirection(UIntConst<i>, UIntConst<reverse>) {}
+    template <unsigned i>
+    void writeDirection(StepperNumber<i>,bool reverse) {}
 
-    template <size_t i, size_t edge>
-    void writeStep(UIntConst<i>, UIntConst<edge>) {}
+    template <unsigned i >
+    void writeStep(StepperNumber<i>,bool edge) {}
 
     bool checkEndSwitchHit(size_t i) { return true; }
 

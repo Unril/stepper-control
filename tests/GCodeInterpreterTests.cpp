@@ -60,12 +60,19 @@ struct GCodeInterpreter_Should : Test {
 
     GCodeInterpreter_Should() : interp(&se, &printer) {}
 
-    std::vector<Ai> path() { return interp.path(); }
+    std::vector<Ai> path() const { return interp.path(); }
 };
 
 TEST_F(GCodeInterpreter_Should, add_one_linear_move_waypoint) {
     interp.linearMove(Af{200, 100}, inf());
     EXPECT_THAT(path(), ElementsAre(Ai{0, 0}, Ai{200, 100}));
+}
+
+TEST_F(GCodeInterpreter_Should, add_many_linear_move_waypoints) {
+    interp.linearMove(Af{0, 10}, inf());
+    interp.linearMove(Af{1, 10}, inf());
+    interp.linearMove(Af{0, 0}, inf());
+    EXPECT_THAT(path(), ElementsAre(Ai{0, 0}, Ai{0, 10}, Ai{1, 10}, Ai{0, 0}));
 }
 
 TEST_F(GCodeInterpreter_Should, add_one_linear_move_from_different_start_position) {
