@@ -246,20 +246,29 @@ TEST_F(GCodeInterpreter_Should, move_and_wait) {
     EXPECT_THAT(se.seg, ContainerEq(expected));
 }
 
-TEST_F(GCodeInterpreter_Should, set_max_distance) {
-    interp.m105MaxDistanceOverride(Af{2.f, 30.f});
+TEST_F(GCodeInterpreter_Should, set_max_position) {
+    interp.m106MaxPositionOverride(Af{2.f, 30.f});
 
     interp.m102StepsPerUnitLengthOverride({1.f, 10.f});
 
-    EXPECT_THAT(interp.maxDistance(), ElementsAre(2.f, 300.f));
+    EXPECT_THAT(interp.maxPosition(), ElementsAre(2.f, 300.f));
 }
 
-TEST_F(GCodeInterpreter_Should, trim_distance) {
-    interp.m105MaxDistanceOverride(Af{inf(), 10.f});
+TEST_F(GCodeInterpreter_Should, set_min_position) {
+    interp.m105MinPositionOverride(Af{2.f, 30.f});
+
+    interp.m102StepsPerUnitLengthOverride({1.f, 10.f});
+
+    EXPECT_THAT(interp.minPosition(), ElementsAre(2.f, 300.f));
+}
+
+TEST_F(GCodeInterpreter_Should, trim_position) {
+    interp.m106MaxPositionOverride(Af{inf(), 10.f});
+    interp.m105MinPositionOverride(Af{-10.f, inf()});
 
     interp.linearMove(Af{20, 20}, inf());
     interp.linearMove(Af{-20, -20}, inf());
-    EXPECT_THAT(path(), ElementsAre(Ai{0, 0}, Ai{20, 10}, Ai{-20, 0}));
+    EXPECT_THAT(path(), ElementsAre(Ai{0, 0}, Ai{20, 10}, Ai{-10, -20}));
 }
 
 // Responses
@@ -280,7 +289,7 @@ TEST_F(GCodeInterpreter_Should, print_completed) {
 }
 
 TEST_F(GCodeInterpreter_Should, print_axes_configuration) {
-    interp.m106PrintAxesConfiguration();
+    interp.m110PrintAxesConfiguration();
 
     EXPECT_THAT(printer.ss.str(), StrEq("Axes: AB\n"));
 }

@@ -32,8 +32,8 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
                               Printer *printer = Printer::instance())
         : executor_(exec), mode_(DistanceMode::Absolute), homingVelUnitsPerSec_(axConst<Af>(0.01f)),
           maxVelUnitsPerSec_(axConst<Af>(0.5f)), maxAccUnitsPerSec2_(axConst<Af>(0.1f)),
-          stepPerUnit_(axConst<Af>(1.f)), maxDistanceUnits_(axInf<Af>()), ticksPerSec_(1),
-          printer_(printer) {
+          stepPerUnit_(axConst<Af>(1.f)), maxPosUnits_(axInf<Af>()), minPosUnits_(axInf<Af>()),
+          ticksPerSec_(1), printer_(printer) {
         scAssert(exec != nullptr);
         scAssert(printer != nullptr);
     }
@@ -58,11 +58,14 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
             if (!std::isfinite(pos)) {
                 continue;
             }
-            auto maxDist = maxDistanceUnits_[i];
-            if (pos > maxDist) {
-                pos = maxDist;
-            } else if (std::isfinite(maxDist)) {
-                pos = 0;
+
+            auto maxPos = maxPosUnits_[i];
+            if (std::isfinite(maxPos) && pos > maxPos) {
+                pos = maxPos;
+            }
+            auto minPos = minPosUnits_[i];
+            if (std::isfinite(minPos) && pos < minPos) {
+                pos = minPos;
             }
 
             auto steps = lroundf(pos * stepPerUnit_[i]);
@@ -103,22 +106,26 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
     // M commands
     ///////////////////////////////////////////////////////////////////////////
 
+    // Overrides only finite axes
     void m100MaxVelocityOverride(Af const &unitsPerSec) override {
         copyOnlyFinite(unitsPerSec, maxVelUnitsPerSec_);
         scAssert(all(gt(maxVelUnitsPerSec_, axZero<Af>())));
     }
 
+    // Overrides only finite axes
     void m101MaxAccelerationOverride(Af const &unitsPerSecSqr) override {
         copyOnlyFinite(unitsPerSecSqr, maxAccUnitsPerSec2_);
         scAssert(all(gt(maxAccUnitsPerSec2_, axZero<Af>())));
     }
 
     // Can be negative.
+    // Overrides only finite axes
     void m102StepsPerUnitLengthOverride(Af const &stepsPerUnit) override {
         copyOnlyFinite(stepsPerUnit, stepPerUnit_);
         scAssert(all(neq(stepPerUnit_, axZero<Af>())));
     }
 
+    // Overrides only finite axes
     void m103HomingVelocityOverride(Af const &unitsPerSec) override {
         copyOnlyFinite(unitsPerSec, homingVelUnitsPerSec_);
         scAssert(all(gt(homingVelUnitsPerSec_, axZero<Af>())));
@@ -129,7 +136,8 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
                   << "Max acceleration: " << maxAccUnitsPerSec2_ << " (" << maxAcceleration() << ")"
                   << eol << "Homing velocity: " << homingVelUnitsPerSec_ << " (" << homingVelocity()
                   << ")" << eol << "Steps per unit length: " << stepPerUnit_ << eol
-                  << "Max distance: " << maxDistanceUnits_ << " (" << maxDistance() << ")" << eol
+                  << "Min position: " << minPosUnits_ << " (" << minPosition() << ")" << eol
+                  << "Max position: " << maxPosUnits_ << " (" << maxPosition() << ")" << eol
                   << "Mode: " << (mode_ == DistanceMode::Absolute ? "Absolute" : "Relative") << eol
                   << "Ticks per second: " << ticksPerSec_ << eol << "Path (" << path_.size()
                   << "): ";
@@ -139,14 +147,13 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
         *printer_ << eol;
     }
 
-    // Set max traveling distance in units. If it's not inf then all moves will be trimmed from zero
-    // to that value.
-    void m105MaxDistanceOverride(Af const &units) override {
-        copyOnlyFinite(units, maxDistanceUnits_);
-        scAssert(all(gt(maxDistanceUnits_, axZero<Af>())));
-    }
+    // Overrides all axes
+    void m105MinPositionOverride(Af const &units) override { minPosUnits_ = units; }
 
-    void m106PrintAxesConfiguration() override {
+    // Overrides all axes
+    void m106MaxPositionOverride(Af const &units) override { maxPosUnits_ = units; }
+
+    void m110PrintAxesConfiguration() override {
         *printer_ << "Axes: " << AxesTraits::names() << eol;
     }
 
@@ -215,7 +222,10 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
     }
 
     // Steps
-    Af maxDistance() const { return maxDistanceUnits_ * stepPerUnit_; }
+    Af minPosition() const { return minPosUnits_ * stepPerUnit_; }
+
+    // Steps
+    Af maxPosition() const { return maxPosUnits_ * stepPerUnit_; }
 
     int32_t ticksPerSecond() const { return ticksPerSec_; }
 
@@ -263,7 +273,8 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
     Af maxVelUnitsPerSec_;
     Af maxAccUnitsPerSec2_;
     Af stepPerUnit_;
-    Af maxDistanceUnits_;
+    Af minPosUnits_; // Can be inf
+    Af maxPosUnits_; // Can be inf
     int32_t ticksPerSec_;
     Printer *printer_;
 };

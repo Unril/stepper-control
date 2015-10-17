@@ -70,11 +70,11 @@ struct Motor {
     FORCE_INLINE void writeStep(StepperNumber<2>, bool lvl) { Step2 = lvl; }
     FORCE_INLINE void writeStep(StepperNumber<3>, bool lvl) { Step3 = lvl; }
     FORCE_INLINE void writeStep(StepperNumber<4>, bool lvl) { Step4 = lvl; }
-    FORCE_INLINE void writeDirection(StepperNumber<0>, bool dir) { Dir0 = dir; }
+    FORCE_INLINE void writeDirection(StepperNumber<0>, bool dir) { Dir0 = !dir; }
     FORCE_INLINE void writeDirection(StepperNumber<1>, bool dir) { Dir1 = dir; }
     FORCE_INLINE void writeDirection(StepperNumber<2>, bool dir) { Dir2 = dir; }
     FORCE_INLINE void writeDirection(StepperNumber<3>, bool dir) { Dir3 = !dir; }
-    FORCE_INLINE void writeDirection(StepperNumber<4>, bool dir) { Dir4 = dir; }
+    FORCE_INLINE void writeDirection(StepperNumber<4>, bool dir) { Dir4 = !dir; }
 
     FORCE_INLINE void begin() {}
     FORCE_INLINE void end() {}
@@ -110,7 +110,7 @@ int32_t getTicksPerSecond(unsigned sz) {
         return 140000;
     case 5:
     case 6:
-        return 120000;
+        return 100000;
     default:
         scAssert(!"Wrong axes count.");
         return 0;
@@ -146,14 +146,14 @@ static void execute() {
     auto perRot = 1.f / (2.f * Pi);
     auto spu = 6400.f / 5.f;
     interpreter.m102StepsPerUnitLengthOverride(
-        {10 * 64 * 200 * perRot, spu, spu, spu, 20 * 64 * 200 * perRot});
+        {10 * 64 * 200 * perRot, spu, spu, spu, 64 * 200 * perRot});
 
     auto rotVel = 20.f;
-    auto rotAcc = 40.f;
-    interpreter.m100MaxVelocityOverride({0.4, rotVel, rotVel, rotVel, 0.8});
-    interpreter.m101MaxAccelerationOverride({0.8, rotAcc, rotAcc, rotAcc, 1.6});
-    interpreter.m103HomingVelocityOverride({0.1, rotVel * 0.5, rotVel * 0.5, rotVel * 0.5, 0.2});
-    interpreter.m105MaxDistanceOverride({inf(), 300.f, 375.f, 375.f, inf()});
+    auto rotAcc = 60.f;
+    interpreter.m100MaxVelocityOverride({0.5, rotVel, rotVel, rotVel, 1});
+    interpreter.m101MaxAccelerationOverride({1, rotAcc, rotAcc, rotAcc, 2});
+    interpreter.m103HomingVelocityOverride({0.2, rotVel * 0.5, rotVel * 0.5, rotVel * 0.5, 0.4});
+    //interpreter.m105MaxDistanceOverride({inf(), 300.f, 375.f, 375.f, inf()});
 
     timer.start();
 
@@ -236,7 +236,7 @@ void pinTest() {
     }
 }
 
-// TODO: a0x10 a1x10 a0x0 check
+// TODO: a0x10 a1x10 a0x0 check with max distance
 // Full step from zero rounding
 
 int main() {

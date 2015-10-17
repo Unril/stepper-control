@@ -56,9 +56,11 @@ class IGCodeInterpreter {
 
     virtual void m104PrintInfo() const = 0;
 
-    virtual void m105MaxDistanceOverride(Af const &vel) = 0;
+    virtual void m105MinPositionOverride(Af const &vel) = 0;
 
-    virtual void m106PrintAxesConfiguration() = 0;
+    virtual void m106MaxPositionOverride(Af const &vel) = 0;
+
+    virtual void m110PrintAxesConfiguration() = 0;
 
     virtual void error(const char *reason) = 0;
 

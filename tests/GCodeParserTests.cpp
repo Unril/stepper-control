@@ -29,8 +29,9 @@ struct GCodeParserCallbacksMock : IGCodeInterpreter<AxTr> {
     MOCK_METHOD1(m101MaxAccelerationOverride, void(Af const &));
     MOCK_METHOD1(m102StepsPerUnitLengthOverride, void(Af const &));
     MOCK_METHOD1(m103HomingVelocityOverride, void(Af const &));
-    MOCK_METHOD1(m105MaxDistanceOverride, void(Af const &));
-    MOCK_METHOD0(m106PrintAxesConfiguration, void());
+    MOCK_METHOD1(m105MinPositionOverride, void(Af const &));
+    MOCK_METHOD1(m106MaxPositionOverride, void(Af const &));
+    MOCK_METHOD0(m110PrintAxesConfiguration, void());
     MOCK_METHOD0(start, void());
     MOCK_METHOD0(stop, void());
     MOCK_CONST_METHOD0(isRunning, bool());
@@ -182,20 +183,31 @@ TEST_F(GCodeParser_Should, parse_m103HomingVelocityOverride) {
     parse("M103\n");
 }
 
-TEST_F(GCodeParser_Should, parse_m105MaxDistanceOverride) {
-    EXPECT_CALL(cb_, m105MaxDistanceOverride(ElementsAre(3.14f, 0.123f, 0.1f)));
+TEST_F(GCodeParser_Should, parse_m105MinPositionOverride) {
+    EXPECT_CALL(cb_, m105MinPositionOverride(ElementsAre(3.14f, 0.123f, 0.1f)));
     parse("M105 A3.14 B0.123 C.1\n");
 
-    EXPECT_CALL(cb_, m105MaxDistanceOverride(ElementsAre(0.123f, inf(), inf())));
+    EXPECT_CALL(cb_, m105MinPositionOverride(ElementsAre(0.123f, inf(), inf())));
     parse("M105 A0.123\n");
 
-    EXPECT_CALL(cb_, m105MaxDistanceOverride(ElementsAre(inf(), inf(), inf())));
+    EXPECT_CALL(cb_, m105MinPositionOverride(ElementsAre(inf(), inf(), inf())));
     parse("M105\n");
 }
 
-TEST_F(GCodeParser_Should, parse_m106PrintAxesConfiguration) {
-    EXPECT_CALL(cb_, m106PrintAxesConfiguration());
+TEST_F(GCodeParser_Should, parse_m106MaxPositionOverride) {
+    EXPECT_CALL(cb_, m106MaxPositionOverride(ElementsAre(3.14f, 0.123f, 0.1f)));
+    parse("M106 A3.14 B0.123 C.1\n");
+
+    EXPECT_CALL(cb_, m106MaxPositionOverride(ElementsAre(0.123f, inf(), inf())));
+    parse("M106 A0.123\n");
+
+    EXPECT_CALL(cb_, m106MaxPositionOverride(ElementsAre(inf(), inf(), inf())));
     parse("M106\n");
+}
+
+TEST_F(GCodeParser_Should, parse_m110PrintAxesConfiguration) {
+    EXPECT_CALL(cb_, m110PrintAxesConfiguration());
+    parse("M110\n");
 }
 
 TEST_F(GCodeParser_Should, not_parse_without_line_break) {

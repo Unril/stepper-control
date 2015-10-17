@@ -62,7 +62,7 @@ struct Integration_Should : Test {
     GCodeParser<AxTr> parser;
 
     Integration_Should() : executor(&mm, &tm), interpreter(&executor), parser(&interpreter) {
-        interpreter.setTicksPerSecond(100000);
+        interpreter.setTicksPerSecond(10000);
     }
 
     void update() {
