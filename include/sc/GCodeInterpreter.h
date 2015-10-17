@@ -32,7 +32,7 @@ class GCodeInterpreter : public IGCodeInterpreter<AxesTraits> {
                               Printer *printer = Printer::instance())
         : executor_(exec), mode_(DistanceMode::Absolute), homingVelUnitsPerSec_(axConst<Af>(0.01f)),
           maxVelUnitsPerSec_(axConst<Af>(0.5f)), maxAccUnitsPerSec2_(axConst<Af>(0.1f)),
-          stepPerUnit_(axConst<Af>(1.f)), maxPosUnits_(axInf<Af>()), minPosUnits_(axInf<Af>()),
+          stepPerUnit_(axConst<Af>(1.f)), minPosUnits_(axInf<Af>()), maxPosUnits_(axInf<Af>()),
           ticksPerSec_(1), printer_(printer) {
         scAssert(exec != nullptr);
         scAssert(printer != nullptr);

@@ -98,14 +98,18 @@ void MainWindow::on_pbDisconnect_clicked() {
     ui_.pbRefresh->setEnabled(true);
 }
 
-void MainWindow::on_pbReset_clicked() {
-    QDial *dials[] = {ui_.dA, ui_.dX, ui_.dY, ui_.dZ, ui_.dB};
-    for (auto d : dials) {
-        d->setValue(0);
-    }
-
+void MainWindow::on_pbResetPosition_clicked() {
     executor_->setPosition();
     interpreter_->printCurrentPosition();
+    updatePositions();
+}
+
+void MainWindow::on_pbSendData_clicked() {
+    auto data = ui_.teData->toPlainText();
+    for (auto &&line : data.split("\n", QString::SkipEmptyParts)) {
+        line += "\n";
+        parser_->parseLine(line.toLatin1().constData());
+    }
 }
 
 void MainWindow::readyRead() {
@@ -127,20 +131,6 @@ void MainWindow::statusTimerTimeout() {
 
 void MainWindow::executionStarted() {
     qDebug() << "Execution started.";
-
-    QDial *dials[] = {ui_.dA, ui_.dX, ui_.dY, ui_.dZ, ui_.dB};
-    for (int i = 0; i < TestAxesTraits::size; i++) {
-        auto dial = dials[i];
-        auto maxUnits = interpreter_->maxDistance()[i];
-        if (isfinite(maxUnits)) {
-            auto spu = interpreter_->stepsPerUnitLength()[i];
-            auto maxSteps = maxUnits * spu;
-            dial->setMaximum(maxSteps);
-        } else {
-            dial->setWrapping(true);
-        }
-    }
-
     statusTimer_->start();
 }
 
@@ -151,10 +141,12 @@ void MainWindow::executionStopped() {
 }
 
 void MainWindow::updatePositions() {
-    QDial *dials[] = {ui_.dA, ui_.dX, ui_.dY, ui_.dZ, ui_.dB};
+    QLabel *labels[] = {ui_.lA, ui_.lX, ui_.lY, ui_.lZ, ui_.lB};
+    QLabel *labels2[] = {ui_.lA_2, ui_.lX_2, ui_.lY_2, ui_.lZ_2, ui_.lB_2};
+    auto spu = interpreter_->stepsPerUnitLength();
     for (int i = 0; i < TestAxesTraits::size; i++) {
-        auto dial = dials[i];
         auto step = executor_->position()[i];
-        dial->setValue(step);
+        labels[i]->setText(QString::number(step));
+        labels2[i]->setText(QString::number(step / spu[i]));
     }
 }

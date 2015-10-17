@@ -383,7 +383,7 @@ class GCodeParser {
         case 105:
             return m105MinPositionOverride();
         case 106:
-            return m106MaxPositionOverride();    
+            return m106MaxPositionOverride();
         case 110:
             return m110PrintAxesConfiguration();
         default:

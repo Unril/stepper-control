@@ -34,9 +34,9 @@ class Motor : public QObject {
     template <unsigned i >
     void writeStep(StepperNumber<i>,bool edge) {}
 
-    bool checkEndSwitchHit(size_t i) { return true; }
+    static bool checkEndSwitchHit(size_t i) { return true; }
 
-    void begin() {}
+    static void begin() {}
 
     void end() { emit update(); }
 
@@ -93,14 +93,15 @@ class MainWindow : public QMainWindow {
   public:
     using This = MainWindow;
 
-    MainWindow(QWidget *parent = nullptr);
+    explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
   public slots:
     void on_pbRefresh_clicked();
     void on_pbConnect_clicked();
     void on_pbDisconnect_clicked();
-    void on_pbReset_clicked();
+    void on_pbResetPosition_clicked();
+    void on_pbSendData_clicked();
 
     void readyRead();
     void statusTimerTimeout();
