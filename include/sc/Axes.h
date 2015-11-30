@@ -373,7 +373,7 @@ inline Axes<T, Size> &applyInplace(Axes<T, Size> &a, F unaryFunc) {
 }
 
 template <typename T, size_t Size, typename F>
-inline auto apply(Axes<T, Size> a, F unaryFunc) ->  Axes<decltype(unaryFunc(T{})), Size>{
+inline auto apply(Axes<T, Size> a, F unaryFunc) -> Axes<decltype(unaryFunc(T{})), Size> {
     Axes<decltype(unaryFunc(T{})), Size> res;
     for (size_t i = 0; i < Size; ++i) {
         res[i] = unaryFunc(a[i]);
@@ -401,12 +401,7 @@ inline void copyOnlyFinite(Axes<T, Size> const &src, Axes<T, Size> &dest) {
 
 template <typename T, size_t Size>
 inline Printer &operator<<(Printer &p, Axes<T, Size> const &a) {
-    for (size_t i = 0; i < Size; ++i) {
-        p << a[i];
-        if (i != Size - 1) {
-            p << ", ";
-        }
-    }
+    p.print(a.data(), Size);
     return p;
 }
 }

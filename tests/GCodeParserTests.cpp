@@ -12,12 +12,12 @@ namespace {
 
 struct AxTr {
     static const int size = 3;
-    static const char *names() { return "ABC"; }
+    static const char *names() { return "AXC"; }
 };
 
 using Af = TAf<AxTr::size>;
 
-struct GCodeParserCallbacksMock : IGCodeInterpreter<AxTr> {
+struct GCodeParserCallbacksMock {
     MOCK_METHOD1(feedrateOverride, void(float));
     MOCK_METHOD2(linearMove, void(Af const &, float));
     MOCK_METHOD1(g0RapidMove, void(Af const &));
@@ -39,7 +39,7 @@ struct GCodeParserCallbacksMock : IGCodeInterpreter<AxTr> {
     MOCK_CONST_METHOD0(m104PrintInfo, void());
     MOCK_METHOD0(clearCommandsBuffer, void());
 
-    void error(const char *reason) override {
+    void error(const char *reason) {
         std::stringstream ss;
         ss << "Error " << reason << std::endl;
         throw std::logic_error(ss.str());
@@ -50,7 +50,7 @@ struct GCodeParser_Should : Test {
     GCodeParser_Should() {}
 
     GCodeParserCallbacksMock cb_;
-    GCodeParser<AxTr> parser_{&cb_};
+    GCodeParser<GCodeParserCallbacksMock, AxTr> parser_{&cb_};
 
     void parse(std::string const &line) { parser_.parseLine(line.c_str()); }
 };
@@ -67,15 +67,15 @@ TEST_F(GCodeParser_Should, not_parse_empty_string) {
 
 TEST_F(GCodeParser_Should, parse_linear_move) {
     EXPECT_CALL(cb_, linearMove(ElementsAre(1.f, 2.f, 3.f), Eq(inf())));
-    parse("A1 B2 C3\n");
+    parse("A1 X2 C3\n");
 
     EXPECT_CALL(cb_, linearMove(ElementsAre(10.f, 20.f, 30.f), Eq(inf())));
-    parse("a10 b20 c30\n");
+    parse("a10 x20 c30\n");
 }
 
 TEST_F(GCodeParser_Should, parse_linear_move_with_feedrate) {
     EXPECT_CALL(cb_, linearMove(ElementsAre(1.f, -2.f, 3.f), Eq(123.f)));
-    parse("A1 B-2 C+3 F123\n");
+    parse("A1 X-2 C+3 F123\n");
 
     EXPECT_CALL(cb_, linearMove(ElementsAre(1.f, inf(), inf()), Eq(0.2f)));
     parse("a1 f.2\n");
@@ -83,7 +83,7 @@ TEST_F(GCodeParser_Should, parse_linear_move_with_feedrate) {
 
 TEST_F(GCodeParser_Should, parse_linear_move_with_floating_value) {
     EXPECT_CALL(cb_, linearMove(ElementsAre(1.2f, -0.3f, 1e+2f), Eq(inf())));
-    parse("A1.2 B-.3 C1e+2\n");
+    parse("A1.2 X-.3 C1e+2\n");
 }
 
 TEST_F(GCodeParser_Should, set_unused_axes_to_inf_in_linear_move) {
@@ -98,10 +98,10 @@ TEST_F(GCodeParser_Should, parse_feedrate_override) {
 
 TEST_F(GCodeParser_Should, parse_g0RapidMove) {
     EXPECT_CALL(cb_, g0RapidMove(ElementsAre(1.1f, 2.f, 3.f)));
-    parse("G0 A1.1 B2 C3\n");
+    parse("G0 A1.1 X2 C3\n");
 
     EXPECT_CALL(cb_, g0RapidMove(ElementsAre(inf(), 2.f, inf())));
-    parse("g0 b2\n");
+    parse("g0 x2\n");
 
     EXPECT_CALL(cb_, g0RapidMove(ElementsAre(inf(), inf(), inf())));
     parse("g0\n");
@@ -109,10 +109,10 @@ TEST_F(GCodeParser_Should, parse_g0RapidMove) {
 
 TEST_F(GCodeParser_Should, parse_g1LinearMove) {
     EXPECT_CALL(cb_, g1LinearMove(ElementsAre(-1.1f, 2.f, 3.f), Eq(4.1f)));
-    parse("G1 A-1.1 B2 C3 F4.1\n");
+    parse("G1 A-1.1 X2 C3 F4.1\n");
 
     EXPECT_CALL(cb_, g1LinearMove(ElementsAre(inf(), 2.f, inf()), Eq(inf())));
-    parse("G1 B2\n");
+    parse("G1 X2\n");
 
     EXPECT_CALL(cb_, g1LinearMove(ElementsAre(inf(), inf(), inf()), Eq(inf())));
     parse("G1\n");
@@ -141,7 +141,7 @@ TEST_F(GCodeParser_Should, parse_g90g91DistanceMode) {
 
 TEST_F(GCodeParser_Should, parse_m100MaxVelocityOverride) {
     EXPECT_CALL(cb_, m100MaxVelocityOverride(ElementsAre(3.14f, 0.11f, 0.123f)));
-    parse("M100 A3.14 B0.11 C.123\n");
+    parse("M100 A3.14 X0.11 C.123\n");
 
     EXPECT_CALL(cb_, m100MaxVelocityOverride(ElementsAre(inf(), inf(), 0.1f)));
     parse("M100 C.1\n");
@@ -152,10 +152,10 @@ TEST_F(GCodeParser_Should, parse_m100MaxVelocityOverride) {
 
 TEST_F(GCodeParser_Should, parse_m101MaxAccelerationOverride) {
     EXPECT_CALL(cb_, m101MaxAccelerationOverride(ElementsAre(3.14f, 0.123f, 0.1f)));
-    parse("M101 A3.14 B0.123 C.1\n");
+    parse("M101 A3.14 X0.123 C.1\n");
 
     EXPECT_CALL(cb_, m101MaxAccelerationOverride(ElementsAre(inf(), 0.123f, inf())));
-    parse("M101 B0.123\n");
+    parse("M101 X0.123\n");
 
     EXPECT_CALL(cb_, m101MaxAccelerationOverride(ElementsAre(inf(), inf(), inf())));
     parse("M101\n");
@@ -163,7 +163,7 @@ TEST_F(GCodeParser_Should, parse_m101MaxAccelerationOverride) {
 
 TEST_F(GCodeParser_Should, parse_m102StepsPerUnitLengthOverride) {
     EXPECT_CALL(cb_, m102StepsPerUnitLengthOverride(ElementsAre(3.14f, 0.123f, 0.1f)));
-    parse("M102 A3.14 B0.123 C.1\n");
+    parse("M102 A3.14 X0.123 C.1\n");
 
     EXPECT_CALL(cb_, m102StepsPerUnitLengthOverride(ElementsAre(0.123f, inf(), inf())));
     parse("M102 A0.123\n");
@@ -174,7 +174,7 @@ TEST_F(GCodeParser_Should, parse_m102StepsPerUnitLengthOverride) {
 
 TEST_F(GCodeParser_Should, parse_m103HomingVelocityOverride) {
     EXPECT_CALL(cb_, m103HomingVelocityOverride(ElementsAre(3.14f, 0.123f, 0.1f)));
-    parse("M103 A3.14 B0.123 C.1\n");
+    parse("M103 A3.14 X0.123 C.1\n");
 
     EXPECT_CALL(cb_, m103HomingVelocityOverride(ElementsAre(0.123f, inf(), inf())));
     parse("M103 A0.123\n");
@@ -185,7 +185,7 @@ TEST_F(GCodeParser_Should, parse_m103HomingVelocityOverride) {
 
 TEST_F(GCodeParser_Should, parse_m105MinPositionOverride) {
     EXPECT_CALL(cb_, m105MinPositionOverride(ElementsAre(3.14f, 0.123f, 0.1f)));
-    parse("M105 A3.14 B0.123 C.1\n");
+    parse("M105 A3.14 X0.123 C.1\n");
 
     EXPECT_CALL(cb_, m105MinPositionOverride(ElementsAre(0.123f, inf(), inf())));
     parse("M105 A0.123\n");
@@ -196,7 +196,7 @@ TEST_F(GCodeParser_Should, parse_m105MinPositionOverride) {
 
 TEST_F(GCodeParser_Should, parse_m106MaxPositionOverride) {
     EXPECT_CALL(cb_, m106MaxPositionOverride(ElementsAre(3.14f, 0.123f, 0.1f)));
-    parse("M106 A3.14 B0.123 C.1\n");
+    parse("M106 A3.14 X0.123 C.1\n");
 
     EXPECT_CALL(cb_, m106MaxPositionOverride(ElementsAre(0.123f, inf(), inf())));
     parse("M106 A0.123\n");
@@ -228,7 +228,7 @@ TEST_F(GCodeParser_Should, not_parse_g0_code_with_floating_or_negative_number) {
 }
 
 TEST_F(GCodeParser_Should, not_parse_g0_code_with_axes_without_values) {
-    EXPECT_THROW(parse("G0 A B2\n"), std::logic_error);
+    EXPECT_THROW(parse("G0 A X2\n"), std::logic_error);
 }
 
 TEST_F(GCodeParser_Should, not_parse_feedrate_without_number) {
@@ -250,7 +250,7 @@ TEST_F(GCodeParser_Should, not_parse_numbers_or_words) {
 
 TEST_F(GCodeParser_Should, skip_tabs_and_spaces) {
     EXPECT_CALL(cb_, linearMove(ElementsAre(-1000.f, 123.f, inf()), Eq(2.34f)));
-    parse("\t\tA\t-1000   B  123 \t F+2.34\t \n");
+    parse("\t\tA\t-1000   X  123 \t F+2.34\t \n");
 }
 
 TEST_F(GCodeParser_Should, start) {
@@ -296,12 +296,22 @@ TEST_F(GCodeParser_Should, not_printInfo_if_no_line_end) {
 
 TEST_F(GCodeParser_Should, parse_axes_written_together) {
     EXPECT_CALL(cb_, linearMove(ElementsAre(10.f, 20.f, 30.f), Eq(inf())));
-    parse("a10b20c30\n");
+    parse("a10x20c30\n");
+}
+
+TEST_F(GCodeParser_Should, parse_zero_axes_written_together) {
+    EXPECT_CALL(cb_, linearMove(ElementsAre(0.f, 0.f, 0.f), Eq(inf())));
+    parse("a0x0c0\n");
 }
 
 TEST_F(GCodeParser_Should, parse_axes_in_differen_order) {
     EXPECT_CALL(cb_, linearMove(ElementsAre(10.f, 20.f, 30.f), Eq(inf())));
-    parse("c30b20a10\n");
+    parse("c30x20a10\n");
+}
+
+TEST_F(GCodeParser_Should, parse_a0x1) {
+    EXPECT_CALL(cb_, linearMove(ElementsAre(0.f, 1.f, inf()), Eq(inf())));
+    parse("a0x1\r\n");
 }
 
 TEST_F(GCodeParser_Should, parse_lines_with_axes_written_together) {
@@ -310,8 +320,9 @@ TEST_F(GCodeParser_Should, parse_lines_with_axes_written_together) {
     EXPECT_CALL(cb_, linearMove(ElementsAre(1.f, 10.f, inf()), Eq(inf()))).Times(1).InSequence(s);
     EXPECT_CALL(cb_, linearMove(ElementsAre(0.f, 0.f, inf()), Eq(inf()))).Times(1).InSequence(s);
 
-    parse("a0b10\n");
-    parse("a1b10\n");
-    parse("a0b0\n");
+    parse("a0x10\n");
+    parse("a1x10\n");
+    parse("a0x0\n");
 }
+
 }

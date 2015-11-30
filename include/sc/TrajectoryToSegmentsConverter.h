@@ -5,8 +5,8 @@
 #include <algorithm>
 
 namespace StepperControl {
-// It creates sequence of linear and parabolic segments from given path points,
-// durations between points and durations of blend segments.
+// It creates sequence of linear and parabolic trajectory from given path points,
+// durations between points and durations of blend trajectory.
 template <size_t AxesSize>
 class TrajectoryToSegmentsConverter {
   public:
@@ -15,9 +15,7 @@ class TrajectoryToSegmentsConverter {
     using Sg = Segment<AxesSize>;
     using Segments = std::vector<Sg>;
 
-    void setPath(std::vector<Ai> const &path) { path_ = path; }
-
-    void setPath(std::vector<Ai> &&path) { path_ = move(path); }
+    explicit TrajectoryToSegmentsConverter(std::vector<Ai> const &path) : path_(path) {}
 
     void setDurations(std::vector<float> const &durations) { Dts_ = durations; }
 
@@ -27,7 +25,7 @@ class TrajectoryToSegmentsConverter {
 
     void setBlendDurations(std::vector<float> &&blendDurations) { tbs_ = move(blendDurations); }
 
-    void update(Segments& segments) {
+    void appendTo(Segments &segments) {
         scAssert(!path_.empty());
         scAssert(path_.size() - 1 == Dts_.size());
         scAssert(path_.size() == tbs_.size());
@@ -41,7 +39,7 @@ class TrajectoryToSegmentsConverter {
     }
 
   private:
-    void addSegmentsForPoint(size_t i, Segments& segments) {
+    void addSegmentsForPoint(size_t i, Segments &segments) {
         auto firstPoint = i == 0;
         auto lastPoint = (i == path_.size() - 1);
 
@@ -87,7 +85,7 @@ class TrajectoryToSegmentsConverter {
             segments.emplace_back(static_cast<int32_t>(tBlendCorrected), Dx, DxNext);
         }
 
-        // Where is no linear segments after last point.
+        // Where is no linear trajectory after last point.
         if (lastPoint)
             return;
 
@@ -120,7 +118,7 @@ class TrajectoryToSegmentsConverter {
         }
     }
 
-    std::vector<Ai> path_;
+    std::vector<Ai> const &path_;
     std::vector<float> Dts_;
     std::vector<float> tbs_;
 };

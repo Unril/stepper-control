@@ -3,8 +3,8 @@
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 
-#include "../include/sc/GCodeParser.h"
 #include "../include/sc/GCodeInterpreter.h"
+#include "../include/sc/GCodeParser.h"
 #include "../include/sc/SegmentsExecutor.h"
 
 #include <fstream>
@@ -36,12 +36,16 @@ struct MotorMock {
         current[i] += (edge ? dir[i] : 0);
     }
 
-    static void begin() {}
+    void begin() {}
+
     void end() { data.emplace_back(current); }
 
     void setPosition(Ai const &position) { current = position; }
-
-    static bool checkEndSwitchHit(size_t i) { return false; }
+    
+    bool checkEndSwitchHit(size_t i) {       
+        current[i] = 0; 
+        return true;
+    }
 
     Ai current;
     Ai dir;
@@ -57,12 +61,17 @@ struct TickerMock {
 struct Integration_Should : Test {
     MotorMock mm;
     TickerMock tm;
-    SegmentsExecutor<MotorMock, TickerMock, AxTr> executor;
-    GCodeInterpreter<AxTr> interpreter;
-    GCodeParser<AxTr> parser;
+    using Exec = SegmentsExecutor<MotorMock, TickerMock, AxTr>;
+    using Interp = GCodeInterpreter<Exec, AxTr>;
+    Exec executor;
+    Interp interpreter;
+    GCodeParser<Interp, AxTr> parser;
 
     Integration_Should() : executor(&mm, &tm), interpreter(&executor), parser(&interpreter) {
-        interpreter.setTicksPerSecond(10000);
+        interpreter.setTicksPerSecond(10000);        
+    interpreter.m100MaxVelocityOverride(axConst<Af>(30.f));
+    interpreter.m103HomingVelocityOverride(axConst<Af>(30.f));
+    interpreter.m101MaxAccelerationOverride(axConst<Af>(100.f));
     }
 
     void update() {
@@ -74,9 +83,6 @@ struct Integration_Should : Test {
 };
 
 TEST_F(Integration_Should, create_an_execute_trajectory_from_random_path_points) {
-    interpreter.m100MaxVelocityOverride(axConst<Af>(30.f));
-    interpreter.m101MaxAccelerationOverride(axConst<Af>(100.f));
-
     for (int i = 0; i < 2; ++i) {
         stringstream ss;
         ss << "A" << rand() % 50 << "B" << rand() % 10 << endl;
@@ -95,5 +101,40 @@ TEST_F(Integration_Should, create_an_execute_trajectory_from_random_path_points)
         fs << a[0] << ", " << a[1] << endl;
     }
 #endif
+}
+
+TEST_F(Integration_Should, move_after_homing) {
+    executor.setPosition({10, 0});
+
+    parser.parseLine("A40\n");
+    parser.parseLine("G28\n");
+    parser.parseLine("A30\n");
+
+    update();
+
+    EXPECT_THAT(mm.current, Eq(Ai{30, 0}));
+}
+
+TEST_F(Integration_Should, move_after_waiting) {   
+    parser.parseLine("A10\n");
+    parser.parseLine("G4 P1\n");
+    parser.parseLine("A20\n");
+    parser.parseLine("G4 P0\n");
+    parser.parseLine("A30\n");
+
+    update();
+
+    EXPECT_THAT(mm.current, Eq(Ai{30, 0}));
+}
+
+TEST_F(Integration_Should, move_to_zero_without_spaces) {   
+    parser.parseLine("a2.1b2.1\n");
+    parser.parseLine("a0.0b0.0\n");
+    parser.parseLine("a2b2\n");
+    parser.parseLine("a0b0\n");
+
+    update();
+
+    EXPECT_THAT(mm.current, Eq(Ai{0, 0}));
 }
 }

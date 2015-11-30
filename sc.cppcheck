@@ -4,10 +4,11 @@
         <dir name="include/"/>
     </includedir>
     <defines>
-        <define name="__GNUG__"/>
+        <define name="__MBED__"/>
     </defines>
     <libraries>
-        <library>gnu</library>
+        <library>qt</library>
         <library>sdl</library>
+        <library>windows</library>
     </libraries>
 </project>

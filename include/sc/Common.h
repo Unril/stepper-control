@@ -1,10 +1,10 @@
 #pragma once
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <limits>
-#include <algorithm>
 
 #ifdef __MBED__
 #define FORCE_INLINE __attribute__((always_inline))
@@ -49,20 +49,30 @@ inline int32_t lTruncTowardInf(float v) {
 
 inline float inf() { return std::numeric_limits<float>::infinity(); }
 
-const char eol = '\n';
+namespace {
+const char *eol = "\r\n";
+}
+
+inline const char *sep(int i, int size) { return i == size - 1 ? "" : ", "; }
 
 struct Printer {
     virtual ~Printer() {}
-    virtual void print(int n) = 0;
-    virtual void print(char n) = 0;
-    virtual void print(float n) = 0;
+    virtual void print(const int32_t *n, int size) = 0;
+    virtual void print(const float *n, int size) = 0;
     virtual void print(const char *str) = 0;
 
     static Printer *instance() {
         struct Default : Printer {
-            void print(int n) override { printf("%d", n); }
-            void print(char n) override { putchar(n); }
-            void print(float n) override { printf("%f", n); }
+            void print(const float *n, int size) override {
+                for (int i = 0; i < size; i++) {
+                    printf("%f%s", n[i], sep(i, size));
+                }
+            }
+            void print(const int32_t *n, int size) override {
+                for (int i = 0; i < size; i++) {
+                    printf("%ld%s", n[i], sep(i, size));
+                }
+            }
             void print(const char *str) override { printf("%s", str); }
         };
         static Default p;
@@ -70,20 +80,20 @@ struct Printer {
     }
 };
 
-template <typename T, typename = std::enable_if<std::is_integral<T>::value>>
-inline Printer &operator<<(Printer &p, T n) {
-    p.print(static_cast<int>(n));
+template <typename T>
+inline auto operator<<(Printer &p, T n) ->
+    typename std::enable_if<std::is_integral<T>::value, Printer &>::type {
+    auto val = static_cast<int32_t>(n);
+    p.print(&val, 1);
     return p;
 }
-inline Printer &operator<<(Printer &p, char n) {
-    p.print(n);
+
+inline auto operator<<(Printer &p, float n) -> Printer & {
+    p.print(&n, 1);
     return p;
 }
-inline Printer &operator<<(Printer &p, float n) {
-    p.print(n);
-    return p;
-}
-inline Printer &operator<<(Printer &p, const char *str) {
+
+inline auto operator<<(Printer &p, const char *str) -> Printer & {
     p.print(str);
     return p;
 }

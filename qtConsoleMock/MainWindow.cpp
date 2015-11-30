@@ -16,9 +16,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent) {
     ticker_ = new Ticker(tickerTimer_);
     motor_ = new Motor(this);
 
-    executor_.reset(new SegmentsExecutor<Motor, Ticker, TestAxesTraits>(motor_, ticker_));
-    interpreter_.reset(new GCodeInterpreter<TestAxesTraits>(executor_.get(), printer_));
-    parser_.reset(new GCodeParser<TestAxesTraits>(interpreter_.get()));
+    executor_.reset(new Exec(motor_, ticker_));
+    interpreter_.reset(new Interp(executor_.get(), printer_));
+    parser_.reset(new Parser(interpreter_.get()));
 
     executor_->setOnStarted([](void *p) { static_cast<This *>(p)->executionStarted(); }, this);
     executor_->setOnStopped([](void *p) { static_cast<This *>(p)->executionStopped(); }, this);
@@ -124,7 +124,7 @@ void MainWindow::readyRead() {
 }
 
 void MainWindow::statusTimerTimeout() {
-    if (executor_->isRunning() && !executor_->isHoming()) {
+    if (executor_->isRunning()) {
         interpreter_->printCurrentPosition();
     }
 }

@@ -1,13 +1,13 @@
 #pragma once
 
-#include "../include/sc/Interfaces.h"
-#include "../include/sc/GCodeParser.h"
 #include "../include/sc/GCodeInterpreter.h"
+#include "../include/sc/GCodeParser.h"
+#include "../include/sc/Interfaces.h"
 #include "../include/sc/SegmentsExecutor.h"
 
+#include <QDebug>
 #include <QMainWindow>
 #include <QTimer>
-#include <QDebug>
 #include <QtSerialPort/QSerialPort>
 #include <QtSerialPort/QSerialPortInfo>
 
@@ -29,10 +29,10 @@ class Motor : public QObject {
     explicit Motor(QObject *parent) : QObject(parent) {}
 
     template <unsigned i>
-    void writeDirection(StepperNumber<i>,bool reverse) {}
+    void writeDirection(StepperNumber<i>, bool reverse) {}
 
-    template <unsigned i >
-    void writeStep(StepperNumber<i>,bool edge) {}
+    template <unsigned i>
+    void writeStep(StepperNumber<i>, bool edge) {}
 
     static bool checkEndSwitchHit(size_t i) { return true; }
 
@@ -71,10 +71,18 @@ class SerialPrinter : public QObject, public Printer {
 
   public:
     explicit SerialPrinter(QSerialPort *port) : QObject(port), port_(port) {}
-
-    void print(int n) override { write(n); }
-    void print(char n) override { write(n); }
-    void print(float n) override { write(n); }
+    void print(const float *n, int size) override {
+        for (int i = 0; i < size; i++) {
+            write(n[i]);
+            write(sep(i, size));
+        }
+    }
+    void print(const int32_t *n, int size) override {
+        for (int i = 0; i < size; i++) {
+            write(n[i]);
+            write(sep(i, size));
+        }
+    }
     void print(const char *n) override { write(n); }
 
     template <typename T>
@@ -92,6 +100,9 @@ class MainWindow : public QMainWindow {
 
   public:
     using This = MainWindow;
+    using Exec = SegmentsExecutor<Motor, Ticker, TestAxesTraits>;
+    using Interp = GCodeInterpreter<Exec, TestAxesTraits>;
+    using Parser = GCodeParser<Interp, TestAxesTraits>;
 
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
@@ -114,9 +125,9 @@ class MainWindow : public QMainWindow {
     SerialPrinter *printer_;
     Ticker *ticker_;
     Motor *motor_;
-    std::unique_ptr<SegmentsExecutor<Motor, Ticker, TestAxesTraits>> executor_;
-    std::unique_ptr<GCodeInterpreter<TestAxesTraits>> interpreter_;
-    std::unique_ptr<GCodeParser<TestAxesTraits>> parser_;
+    std::unique_ptr<Exec> executor_;
+    std::unique_ptr<Interp> interpreter_;
+    std::unique_ptr<Parser> parser_;
 
     Ui::MainWindow ui_;
     QSerialPort *port_;

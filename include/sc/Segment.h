@@ -55,7 +55,7 @@ struct Segment {
     Segment(int32_t dt, Ai const &dx) : dt(dt) {
         auto dtL = static_cast<int64_t>(dt);
 
-        // Overflow check.
+        // Overflow check. abs(dx) <= int64max/2
         scAssert(all(le(axCast<int64_t>(axAbs(dx)), axConst<Al>(int64Max / 2))));
 
         scAssert(dt > 0);
@@ -69,7 +69,7 @@ struct Segment {
     }
 
     /* Parabolic segment.
-       It is set by endpoints of two tangent to parabola segments p0-p1 and p1-p2.
+       It is set by endpoints of two tangent to parabola trajectory p0-p1 and p1-p2.
     x  ^
    x1  +----p1         twiceDt = t2 - t0, ticks
        |   /| \        dx1 = x1 - x0, steps
@@ -103,6 +103,12 @@ struct Segment {
         // value at the end of integration.
         velocity += axCast<int64_t>(halfA);
     }
+
+    bool isHoming() const { return dt == -1; }
+
+    bool isWait() const { return all(eq(velocity, 0)); }
+
+    bool isMove() const { return !isHoming() && !isWait(); }
 
     friend bool operator==(Segment const &lhs, Segment const &rhs) {
         return lhs.dt == rhs.dt && lhs.denominator == rhs.denominator &&

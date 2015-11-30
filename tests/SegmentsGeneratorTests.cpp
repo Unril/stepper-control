@@ -21,12 +21,11 @@ struct TrajectoryToSegmentsConverter_Should : Test {
     using Sg = Segment<AxesSize>;
     vector<Sg> segments;
     vector<Ai> path;
-    SegGen gen;
+    SegGen gen{path};
 
     void update() {
-        gen.setPath(path);
         segments.clear();
-        gen.update(segments);
+        gen.appendTo(segments);
     }
 };
 

@@ -25,15 +25,10 @@ class PathToTrajectoryConverter {
     using Af = Axes<float, AxesSize>;
     using Ai = Axes<int32_t, AxesSize>;
 
-    PathToTrajectoryConverter() {
+    explicit PathToTrajectoryConverter(std::vector<Ai> &path) : path_(path) {
         maxVelocity_.fill(0.5f);
         maxAcceleration_.fill(0.1f);
     }
-
-    // In steps.
-    void setPath(std::vector<Ai> const &path) { path_ = path; }
-
-    void setPath(std::vector<Ai> &&path) { path_ = move(path); }
 
     // Should be less or equal that 0.4 to proper segment generation.
     // In steps per tick.
@@ -94,10 +89,6 @@ class PathToTrajectoryConverter {
         applySlowDownFactor();
     }
 
-    std::vector<Ai> const &path() const { return path_; }
-
-    std::vector<Ai> &path() { return path_; }
-
     std::vector<Af> const &velocities() const { return velocities_; }
 
     std::vector<Af> const &accelerations() const { return accelerations_; }
@@ -155,7 +146,7 @@ class PathToTrajectoryConverter {
                 }
 
                 // Calculate slow down factor such that the blend phase replaces at most half of the
-                // neighboring linear segments.
+                // neighboring linear trajectory.
                 if ((i > 0 && tbs_[i] > Dts_[i - 1] + eps &&
                      tbs_[i - 1] + tbs_[i] > 2.0 * Dts_[i - 1] + eps) ||
                     (i < path_.size() - 1 && tbs_[i] > Dts_[i] + eps &&
@@ -168,7 +159,7 @@ class PathToTrajectoryConverter {
                 }
             }
 
-            // Apply slow down factors to linear segments.
+            // Apply slow down factors to linear trajectory.
             for (size_t i = 0; i < path_.size() - 1; i++) {
                 velocities_[i] *= std::min(slowDownFactors[i], slowDownFactors[i + 1]);
                 Dts_[i] = Dts_[i] / std::min(slowDownFactors[i], slowDownFactors[i + 1]);
@@ -176,7 +167,7 @@ class PathToTrajectoryConverter {
         }
     }
 
-    std::vector<Ai> path_;
+    std::vector<Ai> &path_; // In steps.
     std::vector<Af> velocities_;
     std::vector<Af> accelerations_;
     std::vector<float> Dts_;

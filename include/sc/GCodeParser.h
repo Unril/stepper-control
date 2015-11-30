@@ -18,6 +18,7 @@ class ParserException : public std::exception {
 
 /*
 Parser accepts input line and calls corresponding callbacks.
+Note: strtof bug. If axis name is X then separate it from left 0. Not "a0x0" but "a0 x0".
 
 EBNF grammar
 
@@ -59,13 +60,12 @@ printCurrentPosition = "?" "\n"
 line = ( start | stop | | clearCommandsBuffer | printCurrentPosition |
     linearMove | feedrateOverride | gCommand | mCommand | "\n" )
 */
-template <typename AxesTraits = DefaultAxesTraits>
+template <typename IGCodeInterpreter, typename AxesTraits = DefaultAxesTraits>
 class GCodeParser {
     using Af = TAf<AxesTraits::size>;
 
   public:
-    explicit GCodeParser(IGCodeInterpreter<AxesTraits> *cb)
-        : pos_(nullptr), str_(nullptr), cb_(cb) {
+    explicit GCodeParser(IGCodeInterpreter *cb) : pos_(nullptr), str_(nullptr), cb_(cb) {
         scAssert(cb);
     }
 
@@ -87,11 +87,12 @@ class GCodeParser {
 
   private:
     static void updateAxisValue(Af *axes, char name, float value) {
-        name = toupper(name);
-        auto axisName = AxesTraits::names();
-        for (auto axis = axes->begin(); axis != axes->end(); ++axis, ++axisName) {
-            if (*axisName == name) {
-                *axis = value;
+        auto nameUp = toupper(name);
+        auto nameIt = AxesTraits::names();
+        for (auto axisIt = axes->begin(); axisIt != axes->end(); ++axisIt, ++nameIt) {
+            if (*nameIt == nameUp) {
+                *axisIt = value;
+                return;
             }
         }
     }
@@ -485,7 +486,16 @@ class GCodeParser {
 
     bool isPause() const { return toupper(sym()) == 'P'; }
 
-    bool isAxis() const { return sym() && strchr(AxesTraits::names(), toupper(sym())); }
+    bool isAxis() const {
+        auto s = toupper(sym());
+        auto names = AxesTraits::names();
+        for (int i = 0; i < AxesTraits::size; i++) {
+            if (names[i] == s) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     bool isDigit() const { return isdigit(sym()) != 0; }
 
@@ -493,7 +503,7 @@ class GCodeParser {
 
     bool isNewLine() const { return sym() == '\n'; }
 
-    bool isSpace() const { return sym() == ' ' || sym() == '\t' || sym() == '\r'; }
+    bool isSpace() const { return !isNewLine() && isspace(sym()) != 0; }
 
     bool isStart() const { return sym() == '~'; }
 
@@ -524,7 +534,7 @@ class GCodeParser {
         static char buff[buffLen];
         auto pos = static_cast<int>(pos_ - str_);
 #ifdef __MBED__
-        snprintf(buff, buffLen, "%s at %d in %s", reason, pos, str_);
+        sprintf(buff, "%s at %d in %s", reason, pos, str_);
 #else
         sprintf_s(buff, buffLen, "%s at %d in %s", reason, pos, str_);
 #endif
@@ -533,6 +543,6 @@ class GCodeParser {
 
     const char *pos_;
     const char *str_;
-    IGCodeInterpreter<AxesTraits> *cb_;
+    IGCodeInterpreter *cb_;
 };
 }

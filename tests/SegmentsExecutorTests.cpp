@@ -50,7 +50,7 @@ struct MotorMock {
         current.x[i] += current.step[i];
     }
 
-    static void begin() {}
+    static void begin() {} 
     void end() { data.emplace_back(current); }
 
     void setPosition(Ai const &position) { current.x = position; }
@@ -85,7 +85,7 @@ struct SegmentsExecutorTestBase : Test {
     SegmentsExecutorTestBase() : executor{&motor, &ticker} {}
 
     void process() {
-        executor.setSegments(segments);
+        executor.setTrajectory(segments);
         executor.start();
         while (executor.isRunning()) {
             executor.tick();
@@ -300,7 +300,7 @@ TEST_F(SegmentsExecutor1_Should, do_homing_and_other_commands) {
     segments.push_back(Sg(6, {3}));
     segments.push_back(Sg(Af{0.5f}));
     segments.push_back(Sg(6, {3}));
-    executor.setSegments(segments);
+    executor.setTrajectory(segments);
     executor.start();
 
     while (executor.isRunning()) {
@@ -370,7 +370,7 @@ TEST_F(SegmentsExecutor2_Should, handle_zero_ticks_wait) {
 TEST_F(SegmentsExecutor2_Should, do_homing) {
     segments.push_back(Sg({0.5f, 0.2f}));
     executor.setPosition({10, 20});
-    executor.setSegments(segments);
+    executor.setTrajectory(segments);
     executor.start();
 
     while (executor.isRunning()) {

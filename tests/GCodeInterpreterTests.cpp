@@ -19,48 +19,52 @@ using Af = TAf<AxTr::size>;
 using Ai = TAi<AxTr::size>;
 using Sgs = TSgs<AxTr::size>;
 
-struct SegmentsExecutorMock : ISegmentsExecutor<AxTr> {
-    void setTicksPerSecond(int32_t) override {}
+struct SegmentsExecutorMock {
+    void setTicksPerSecond(int32_t) {}
 
-    void start() override {}
+    void start() {}
 
-    void stop() override {}
+    void stop() {}
 
-    bool isRunning() const override { return false; }
+    bool isRunning() const { return false; }
 
-    Ai const &position() const override { return pos; }
+    Ai const &position() const { return pos; }
 
-    void setPosition(Ai const &p) override { pos = p; }
+    void setPosition(Ai const &p) { pos = p; }
 
-    void setSegments(Sgs const &s) override { seg = s; }
+    void setTrajectory(Sgs const &s) { seg = s; }
 
-    void setSegments(Sgs &&s) override { seg = s; }
+    void setTrajectory(Sgs &&s) { seg = s; }
 
     Ai pos = axZero<Ai>();
     Sgs seg;
 };
 
 struct PrinterMock : Printer {
-    void print(int n) override { ss << n; }
-
-    void print(char n) override { ss << n; }
-
-    void print(float n) override { ss << n; }
-
-    void print(const char *str) override { ss << str; }
+    void print(const float *n, int size) override {
+        for (int i = 0; i < size; i++) {
+            ss << n[i] << sep(i, size);
+        }
+    }
+    void print(const int *n, int size) override {
+        for (int i = 0; i < size; i++) {
+            ss << n[i] << sep(i, size);
+        }
+    }
+    void print(const char *str) { ss << str; }
 
     std::stringstream ss;
 };
 
 struct GCodeInterpreter_Should : Test {
-    using Interp = GCodeInterpreter<AxTr>;
+    using Interp = GCodeInterpreter<SegmentsExecutorMock, AxTr>;
     SegmentsExecutorMock se;
     PrinterMock printer;
     Interp interp;
 
     GCodeInterpreter_Should() : interp(&se, &printer) {}
 
-    std::vector<Ai> path() const { return interp.path(); }
+    std::vector<Ai> path() { return interp.path(); }
 };
 
 TEST_F(GCodeInterpreter_Should, add_one_linear_move_waypoint) {
@@ -202,7 +206,7 @@ TEST_F(GCodeInterpreter_Should, trim_max_velocity_to_one_half) {
 
 TEST_F(GCodeInterpreter_Should, home_and_move) {
     interp.setTicksPerSecond(10);
-    interp.m103HomingVelocityOverride({1.f, 2.f});
+    interp.m103HomingVelocityOverride({1.f, 1.f});
     interp.m100MaxVelocityOverride(Af{2.f, 2.f});
     interp.m101MaxAccelerationOverride(Af{1.f, 1.f});
     se.setPosition(Ai{10, 20});
@@ -211,12 +215,12 @@ TEST_F(GCodeInterpreter_Should, home_and_move) {
     interp.linearMove({20.f, 20.f}, inf());
     interp.start();
 
-    SegmentsExecutorMock::Sgs expected{
-        {{0.1f, 0.2f}},
+    Sgs expected{
+        {{0.1f, 0.1f}},
 
-        {20, {0, 0}, {2, 0}},
-        {30, {6, 0}},
-        {20, {2, 0}, {0, 0}},
+        {20, {0, 0}, {2, 2}},
+        {80, {16, 16}},
+        {20, {2, 2}, {0, 0}},
     };
     EXPECT_THAT(se.seg, ContainerEq(expected));
 }
@@ -232,7 +236,7 @@ TEST_F(GCodeInterpreter_Should, move_and_wait) {
     interp.linearMove({10.f, 20.f}, inf());
     interp.start();
 
-    SegmentsExecutorMock::Sgs expected{
+    Sgs expected{
         {20, {0, 0}, {2, 0}},
         {30, {6, 0}},
         {20, {2, 0}, {0, 0}},
@@ -242,6 +246,45 @@ TEST_F(GCodeInterpreter_Should, move_and_wait) {
         {20, {0, 0}, {-2, 0}},
         {30, {-6, 0}},
         {20, {-2, 0}, {0, 0}},
+    };
+    EXPECT_THAT(se.seg, ContainerEq(expected));
+}
+
+TEST_F(GCodeInterpreter_Should, change_vel_between_moves) {
+    interp.setTicksPerSecond(10);
+    interp.m100MaxVelocityOverride(Af{2.f, 2.f});
+    interp.m101MaxAccelerationOverride(Af{1.f, 1.f});
+    se.setPosition(Ai{10, 20});
+
+    interp.linearMove({20.f, 20.f}, inf());
+    interp.m100MaxVelocityOverride(Af{1.f, 2.f});
+    interp.m101MaxAccelerationOverride(Af{0.5f, 1.f});
+    interp.linearMove({10.f, 20.f}, inf());
+    interp.start();
+
+    Sgs expected{
+        {20, {0, 0}, {2, 0}},  {30, {6, 0}},  {20, {2, 0}, {0, 0}},
+
+        {20, {0, 0}, {-1, 0}}, {80, {-8, 0}}, {20, {-1, 0}, {0, 0}},
+    };
+    EXPECT_THAT(se.seg, ContainerEq(expected));
+}
+
+TEST_F(GCodeInterpreter_Should, move_and_wait_0_sec) {
+    interp.setTicksPerSecond(10);
+    interp.m100MaxVelocityOverride(Af{2.f, 2.f});
+    interp.m101MaxAccelerationOverride(Af{1.f, 1.f});
+    se.setPosition(Ai{10, 20});
+
+    interp.linearMove({20.f, 20.f}, inf());
+    interp.g4Wait(0);
+    interp.linearMove({10.f, 20.f}, inf());
+    interp.start();
+
+    Sgs expected{
+        {20, {0, 0}, {2, 0}},  {30, {6, 0}},  {20, {2, 0}, {0, 0}},
+
+        {20, {0, 0}, {-2, 0}}, {30, {-6, 0}}, {20, {-2, 0}, {0, 0}},
     };
     EXPECT_THAT(se.seg, ContainerEq(expected));
 }
@@ -279,25 +322,25 @@ TEST_F(GCodeInterpreter_Should, print_current_position) {
 
     interp.printCurrentPosition();
 
-    EXPECT_THAT(printer.ss.str(), StrEq("Position: 0.1, 0.02\n"));
+    EXPECT_THAT(printer.ss.str(), StrEq("Position: 0.1, 0.02\r\n"));
 }
 
 TEST_F(GCodeInterpreter_Should, print_completed) {
     interp.printCompleted();
 
-    EXPECT_THAT(printer.ss.str(), StrEq("Position: 0, 0\nCompleted\n"));
+    EXPECT_THAT(printer.ss.str(), StrEq("Position: 0, 0\r\nCompleted\r\n"));
 }
 
 TEST_F(GCodeInterpreter_Should, print_axes_configuration) {
     interp.m110PrintAxesConfiguration();
 
-    EXPECT_THAT(printer.ss.str(), StrEq("Axes: AB\n"));
+    EXPECT_THAT(printer.ss.str(), StrEq("Axes: AB\r\n"));
 }
 
 TEST_F(GCodeInterpreter_Should, print_error) {
     interp.error("test");
 
-    EXPECT_THAT(printer.ss.str(), StrEq("Error: test\n"));
+    EXPECT_THAT(printer.ss.str(), StrEq("Error: test\r\n"));
 }
 
 TEST_F(GCodeInterpreter_Should, set_negative_spu) {

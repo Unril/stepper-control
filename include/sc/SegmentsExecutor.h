@@ -2,16 +2,18 @@
 
 #include "Interfaces.h"
 
+#include <atomic>
+
 namespace StepperControl {
 template <unsigned i>
 struct StepperNumber {
     static const unsigned value = i;
 };
 
-// Starts timer and generates steps using provided linear or parabolic segments.
+// Starts timer and generates steps using provided linear or parabolic trajectory.
 // Uses modified Bresenham's line drawing algorithm.
 template <typename TMotor, typename TTicker, typename AxesTraits = DefaultAxesTraits>
-class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
+class SegmentsExecutor {
   public:
     static const unsigned size = AxesTraits::size;
     using Ai = TAi<size>;
@@ -20,40 +22,40 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
     using Callback = void (*)(void *);
 
     SegmentsExecutor(TMotor *motor, TTicker *ticker)
-        : running_(false), homing_(false), motor_(motor), ticker_(ticker), position_(axZero<Ai>()),
+        : running_(false), motor_(motor), ticker_(ticker), position_(axZero<Ai>()),
           ticksPerSecond_(1), onStarted_(nullptr, nullptr), onStopped_(nullptr, nullptr) {
         scAssert(motor_ && ticker_);
-        it_ = segments_.end();
+        it_ = trajectory_.end();
     }
 
     int32_t ticksPerSecond() const { return ticksPerSecond_; }
 
-    void setTicksPerSecond(int32_t ticksPerSecond) override {
+    void setTicksPerSecond(int32_t ticksPerSecond) {
         scAssert(ticksPerSecond > 0);
         ticksPerSecond_ = ticksPerSecond;
     }
 
-    void setSegments(Sgs const &segments) override {
-        segments_ = segments;
-        it_ = segments_.end();
+    void setTrajectory(Sgs const &segments) {
+        trajectory_ = segments;
+        it_ = trajectory_.end();
     }
 
-    void setSegments(Sgs &&segments) override {
-        segments_ = move(segments);
-        it_ = segments_.end();
+    void setTrajectory(Sgs &&segments) {
+        trajectory_ = move(segments);
+        it_ = trajectory_.end();
     }
 
-    Sgs const &segments() const { return segments_; }
+    Sgs const &segments() const { return trajectory_; }
 
     void setOnStarted(Callback func, void *payload) { onStarted_ = std::make_pair(func, payload); }
 
     void setOnStopped(Callback func, void *payload) { onStopped_ = std::make_pair(func, payload); }
 
-    void start() override {
-        if (segments_.empty()) {
+    void start() {
+        if (trajectory_.empty()) {
             return;
         }
-        it_ = segments_.begin();
+        it_ = trajectory_.begin();
         running_ = true;
         if (onStarted_.first) {
             onStarted_.first(onStarted_.second);
@@ -61,19 +63,17 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
         ticker_->attach_us(this, &SegmentsExecutor::tick, 1000000 / ticksPerSecond_);
     }
 
-    void tick() throw() {
+    void tick() {
         auto const dt = it_->dt;
         if (dt > 0) {
             // Integrate next interval.
             tick0();
-        } else if (dt == 0 && ++it_ != segments_.end()) {
+        } else if (dt == 0 && ++it_ != trajectory_.end()) {
             // If there is next segment then integrate it's first interval.
             tick0();
         } else if (dt < 0) {
             // It is a homing cycle.
-            // TODO: check maximum frequency it can work on. Skip cycles if necessary.
-            homing_ = any(neq(it_->velocity, 0));
-            if (homing_) {
+            if (any(neq(it_->velocity, 0))) {  // all velocities != 0 -- still homing
                 // If any of switches is not hit then integrate next interval.
                 tick0();
 
@@ -89,30 +89,28 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
                 position_.fill(0);
             }
         } else {
-            // No segments left.
+            // No trajectory left.
             stop();
         }
     }
 
-    bool isRunning() const override { return running_; }
+    bool isRunning() const { return running_; }
 
-    bool isHoming() const { return homing_; }
-
-    void stop() override {
+    void stop() {
         running_ = false;
         ticker_->detach();
-        it_ = segments_.end();
+        it_ = trajectory_.end();
         if (onStopped_.first) {
             onStopped_.first(onStopped_.second);
         }
     }
 
-    Ai const &position() const override { return position_; }
+    Ai const &position() const { return position_; }
 
-    void setPosition(Ai const &position = axZero<Ai>()) override { position_ = position; }
+    void setPosition(Ai const &position = axZero<Ai>()) { position_ = position; }
 
   private:
-    FORCE_INLINE void tick0() throw() {
+    FORCE_INLINE void tick0() {
         motor_->begin();
 
         // Update time.
@@ -129,16 +127,16 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
     }
 
     template <unsigned i>
-    FORCE_INLINE void writeDir(StepperNumber<i>) throw() {
+    FORCE_INLINE void writeDir(StepperNumber<i>) {
         motor_->writeDirection(StepperNumber<i>{}, it_->velocity[i] < 0);
         writeDir(StepperNumber<i + 1>{});
     }
 
-    FORCE_INLINE void writeDir(StepperNumber<size>) throw() {}
+    FORCE_INLINE void writeDir(StepperNumber<size>) {}
 
     // Integrate i-th axis.
     template <unsigned i>
-    FORCE_INLINE void updateError(StepperNumber<i>, bool(&stepRising)[size]) throw() {
+    FORCE_INLINE void updateError(StepperNumber<i>, bool (&stepRising)[size]) {
         auto v = it_->velocity[i];
         auto error = it_->error[i];
 
@@ -164,19 +162,19 @@ class SegmentsExecutor : public ISegmentsExecutor<AxesTraits> {
     }
 
     // All axes were integrated.
-    FORCE_INLINE void updateError(StepperNumber<size>, bool[size]) throw() {}
+    FORCE_INLINE void updateError(StepperNumber<size>, bool[size]) {}
 
     template <unsigned i>
-    FORCE_INLINE void writeStep(StepperNumber<i>, bool(&stepRising)[size]) throw() {
+    FORCE_INLINE void writeStep(StepperNumber<i>, bool (&stepRising)[size]) {
         motor_->writeStep(StepperNumber<i>{}, stepRising[i]);
         writeStep(StepperNumber<i + 1>{}, stepRising);
     }
 
-    FORCE_INLINE void writeStep(StepperNumber<size>, bool[size]) throw() {}
+    FORCE_INLINE void writeStep(StepperNumber<size>, bool[size]) {}
 
-    bool running_, homing_;
+    std::atomic<bool> running_{false};
     typename Sgs::iterator it_;
-    Sgs segments_;
+    Sgs trajectory_;
     TMotor *motor_;
     TTicker *ticker_;
     Ai position_;
