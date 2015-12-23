@@ -14,53 +14,39 @@ namespace {
 template <size_t AxesSize>
 struct AxTr {
     static const int size = AxesSize;
+
     static const char *names() { return "ABC"; }
 };
 
 template <size_t AxesSize>
 struct MotorMock {
-    MotorMock() : isHit(axZero<Ai>()), dir(axZero<Ai>()), current{axZero<Ai>(), axZero<Ai>()} {}
+    MotorMock() : isHit(axZero<Ai>()), dir(axZero<Ai>()), pos{axZero<Ai>()} {}
 
     using Ai = Axes<int32_t, AxesSize>;
 
-    struct Step {
-        Step(Ai const &x, Ai const &step) : x(x), step(step) {}
-
-        friend bool operator==(Step const &lhs, Step const &rhs) {
-            return lhs.x == rhs.x && lhs.step == rhs.step;
-        }
-
-        friend bool operator!=(Step const &lhs, Step const &rhs) { return !(lhs == rhs); }
-
-        friend ostream &operator<<(ostream &os, Step const &obj) {
-            return os << endl << "x: " << obj.x << " step: " << obj.step;
-        }
-
-        Ai x, step;
-    };
-
     template <int i>
     void writeDirection(StepperNumber<i>, bool reverse) {
-        dir[i] = (reverse ? -1 : 1);
+        dir[i] = reverse ? -1 : 1;
     }
 
     template <int i>
     void writeStep(StepperNumber<i>, bool edge) {
-        current.step[i] = (edge ? dir[i] : 0);
-        current.x[i] += current.step[i];
+        auto s = (edge ? dir[i] : 0);
+        pos[i] += s;
     }
 
-    static void begin() {} 
-    void end() { data.emplace_back(current); }
+    static void begin() {}
 
-    void setPosition(Ai const &position) { current.x = position; }
+    void end() { data.emplace_back(pos); }
+
+    void setPosition(Ai const &position) { pos = position; }
 
     bool checkEndSwitchHit(size_t i) const { return isHit[i] != 0; }
 
     Ai isHit;
     Ai dir;
-    Step current;
-    vector<Step> data;
+    Ai pos;
+    vector<Ai> data;
 };
 
 struct TickerMock {
@@ -75,7 +61,7 @@ struct SegmentsExecutorTestBase : Test {
     using Af = Axes<float, AxesSize>;
     using Sg = Segment<AxesSize>;
     using Mm = MotorMock<AxesSize>;
-    using Steps = vector<typename Mm::Step>;
+    using Steps = vector<typename Mm::Ai>;
     using Executor = SegmentsExecutor<Mm, TickerMock, AxTr<AxesSize>>;
     Mm motor;
     TickerMock ticker;
@@ -100,9 +86,8 @@ TEST_F(SegmentsExecutor1_Should, execute_one_linear_segment) {
     process();
 
     Steps expected{
-        // {{0}, {0}}, // 0
-        {{1}, {1}}, {{1}, {0}}, {{2}, {1}}, {{2}, {0}}, {{3}, {1}},
-        {{3}, {0}}, {{4}, {1}}, {{4}, {0}}, {{5}, {1}}, {{5}, {0}}, // 10
+        // {0},  // 0
+        {1}, {1}, {2}, {2}, {3}, {3}, {4}, {4}, {5}, {5}, // 10
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -113,9 +98,8 @@ TEST_F(SegmentsExecutor1_Should, execute_one_linear_segment_from_negative_positi
     process();
 
     Steps expected{
-        // {{-5}, {0}}, // 0
-        {{-4}, {1}}, {{-4}, {0}}, {{-3}, {1}}, {{-3}, {0}}, {{-2}, {1}},
-        {{-2}, {0}}, {{-1}, {1}}, {{-1}, {0}}, {{0}, {1}},  {{0}, {0}}, // 10
+        // {-5},  // 0
+        {-4}, {-4}, {-3}, {-3}, {-2}, {-2}, {-1}, {-1}, {0}, {0}, // 10
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -126,9 +110,8 @@ TEST_F(SegmentsExecutor1_Should, execute_one_linear_segment_with_negative_slope)
     process();
 
     Steps expected{
-        //  {{5}, {0}}, // 0
-        {{4}, {-1}}, {{4}, {0}},  {{3}, {-1}}, {{3}, {0}},  {{2}, {-1}},
-        {{2}, {0}},  {{1}, {-1}}, {{1}, {0}},  {{0}, {-1}}, {{0}, {0}}, // 10
+        //  {5},  // 0
+        {4}, {4}, {3}, {3}, {2}, {2}, {1}, {1}, {0}, {0}, // 10
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -138,9 +121,9 @@ TEST_F(SegmentsExecutor1_Should, execute_one_short_linear_segment) {
     process();
 
     Steps expected{
-        // /**/ {{0}, {0}},
-        /**/ {{1}, {1}},
-        /**/ {{1}, {0}},
+        // /**/ {0},
+        /**/ {1},
+        /**/ {1},
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -150,11 +133,11 @@ TEST_F(SegmentsExecutor1_Should, execute_one_horizontal_linear_segment) {
     process();
 
     Steps expected{
-        //  /**/ {{0}, {0}}, // 0
-        /**/ {{0}, {0}},
-        /**/ {{0}, {0}},
-        /**/ {{0}, {0}},
-        /**/ {{0}, {0}}, // 4
+        //  /**/ {0},  // 0
+        /**/ {0},
+        /**/ {0},
+        /**/ {0},
+        /**/ {0}, // 4
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -164,10 +147,9 @@ TEST_F(SegmentsExecutor1_Should, execute_one_linear_segment_with_slow_negative_s
     process();
 
     Steps expected{
-        //{{0}, {0}}, // 0
-        {{0}, {0}},   {{-1}, {-1}}, {{-1}, {0}},  {{-1}, {0}},  {{-2}, {-1}},
-        {{-2}, {0}},  {{-2}, {0}},  {{-3}, {-1}}, {{-3}, {0}},  {{-3}, {0}},
-        {{-4}, {-1}}, {{-4}, {0}},  {{-4}, {0}},  {{-5}, {-1}}, {{-5}, {0}}, // 15
+        //{0},  // 0
+        {0},  {-1}, {-1}, {-1}, {-2}, {-2}, {-2}, {-3},
+        {-3}, {-3}, {-4}, {-4}, {-4}, {-5}, {-5}, // 15
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -177,11 +159,9 @@ TEST_F(SegmentsExecutor1_Should, execute_one_rising_parabolic_segment) {
     process();
 
     Steps expected{
-        // {{0}, {0}}, // 0
-        {{0}, {0}}, {{1}, {1}}, {{1}, {0}}, {{2}, {1}}, {{2}, {0}},
-        {{3}, {1}}, {{3}, {0}}, {{3}, {0}}, {{3}, {0}}, {{4}, {1}}, // 10
-        {{4}, {0}}, {{4}, {0}}, {{4}, {0}}, {{5}, {1}}, {{5}, {0}},
-        {{5}, {0}}, {{5}, {0}}, {{5}, {0}}, {{5}, {0}}, {{5}, {0}}, // 20
+        // {0},  // 0
+        {0}, {1}, {1}, {2}, {2}, {3}, {3}, {3}, {3}, {4}, // 10
+        {4}, {4}, {4}, {5}, {5}, {5}, {5}, {5}, {5}, {5}, // 20
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -192,11 +172,9 @@ TEST_F(SegmentsExecutor1_Should, execute_one_falling_parabolic_segment) {
     process();
 
     Steps expected{
-        //{{5}, {0}}, // 0
-        {{5}, {0}},  {{5}, {0}},  {{5}, {0}}, {{5}, {0}},  {{5}, {0}},
-        {{5}, {0}},  {{4}, {-1}}, {{4}, {0}}, {{4}, {0}},  {{4}, {0}}, // 10
-        {{3}, {-1}}, {{3}, {0}},  {{3}, {0}}, {{3}, {0}},  {{2}, {-1}},
-        {{2}, {0}},  {{1}, {-1}}, {{1}, {0}}, {{0}, {-1}}, {{0}, {0}}, // 20
+        //{5},  // 0
+        {5}, {5}, {5}, {5}, {5}, {5}, {4}, {4}, {4}, {4}, // 10
+        {3}, {3}, {3}, {3}, {2}, {2}, {1}, {1}, {0}, {0}, // 20
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -206,11 +184,9 @@ TEST_F(SegmentsExecutor1_Should, execute_one_rising_parabolic_segment_with_negat
     process();
 
     Steps expected{
-        // {{0}, {0}}, // 0
-        {{0}, {0}},   {{-1}, {-1}}, {{-1}, {0}}, {{-2}, {-1}}, {{-2}, {0}},
-        {{-3}, {-1}}, {{-3}, {0}},  {{-3}, {0}}, {{-3}, {0}},  {{-4}, {-1}}, // 10
-        {{-4}, {0}},  {{-4}, {0}},  {{-4}, {0}}, {{-5}, {-1}}, {{-5}, {0}},
-        {{-5}, {0}},  {{-5}, {0}},  {{-5}, {0}}, {{-5}, {0}},  {{-5}, {0}}, // 20
+        // {0},  // 0
+        {0},  {-1}, {-1}, {-2}, {-2}, {-3}, {-3}, {-3}, {-3}, {-4}, // 10
+        {-4}, {-4}, {-4}, {-5}, {-5}, {-5}, {-5}, {-5}, {-5}, {-5}, // 20
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -221,11 +197,9 @@ TEST_F(SegmentsExecutor1_Should, execute_one_falling_parabolic_segment_with_nega
     process();
 
     Steps expected{
-        // {{-5}, {0}}, // 0
-        {{-5}, {0}}, {{-5}, {0}}, {{-5}, {0}}, {{-5}, {0}}, {{-5}, {0}},
-        {{-5}, {0}}, {{-4}, {1}}, {{-4}, {0}}, {{-4}, {0}}, {{-4}, {0}}, // 10
-        {{-3}, {1}}, {{-3}, {0}}, {{-3}, {0}}, {{-3}, {0}}, {{-2}, {1}},
-        {{-2}, {0}}, {{-1}, {1}}, {{-1}, {0}}, {{-0}, {1}}, {{-0}, {0}}, // 20
+        // {-5},  // 0
+        {-5}, {-5}, {-5}, {-5}, {-5}, {-5}, {-4}, {-4}, {-4}, {-4}, // 10
+        {-3}, {-3}, {-3}, {-3}, {-2}, {-2}, {-1}, {-1}, {-0}, {-0}, // 20
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -235,11 +209,11 @@ TEST_F(SegmentsExecutor1_Should, execute_one_short_parabolic_segment_) {
     process();
 
     Steps expected{
-        //   /**/ {{0}, {0}}, // 0
-        /**/ {{0}, {0}},
-        /**/ {{1}, {1}},
-        /**/ {{1}, {0}},
-        /**/ {{1}, {0}}, // 4
+        //   /**/ {0},  // 0
+        /**/ {0},
+        /**/ {1},
+        /**/ {1},
+        /**/ {1}, // 4
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -249,9 +223,8 @@ TEST_F(SegmentsExecutor1_Should, approximate_parabolic_curve_with_zero_curvature
     process();
 
     Steps expected{
-        // {{0}, {0}}, // 0
-        {{0}, {0}}, {{1}, {1}}, {{1}, {0}}, {{2}, {1}}, {{2}, {0}},
-        {{2}, {0}}, {{3}, {1}}, {{3}, {0}}, {{4}, {1}}, {{4}, {0}}, // 10
+        // {0},  // 0
+        {0}, {1}, {1}, {2}, {2}, {2}, {3}, {3}, {4}, {4}, // 10
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -261,9 +234,9 @@ TEST_F(SegmentsExecutor1_Should, execute_two_linear_segments) {
     segments.push_back(Sg(6, {-3}));
     process();
     Steps expected{
-        // {{0}, {0}}, // 0
-        {{1}, {1}},  {{1}, {0}}, {{2}, {1}},  {{2}, {0}}, {{3}, {1}},  {{3}, {0}}, // 6
-        {{2}, {-1}}, {{2}, {0}}, {{1}, {-1}}, {{1}, {0}}, {{0}, {-1}}, {{0}, {0}}, // 12
+        // {0},  // 0
+        {1}, {1}, {2}, {2}, {3}, {3}, // 6
+        {2}, {2}, {1}, {1}, {0}, {0}, // 12
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -272,9 +245,8 @@ TEST_F(SegmentsExecutor1_Should, execute_parabolic_segment_with_gradient_change)
     segments.push_back(Sg(8, {2}, {-2}));
     process();
     Steps expected{
-        // {{0}, {0}}, // 0
-        {{0}, {0}}, {{1}, {1}}, {{1}, {0}},  {{1}, {0}},
-        {{1}, {0}}, {{1}, {0}}, {{0}, {-1}}, {{0}, {0}}, // 8
+        // {0},  // 0
+        {0}, {1}, {1}, {1}, {1}, {1}, {0}, {0}, // 8
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -285,13 +257,10 @@ TEST_F(SegmentsExecutor1_Should, execute_two_linear_segments_with_parabolic_blen
     segments.push_back(Sg(8, {-4}));
     process();
     Steps expected{
-        // {{0}, {0}}, // 0
-        {{1}, {1}},  {{1}, {0}}, {{2}, {1}},  {{2}, {0}},
-        {{3}, {1}},  {{3}, {0}}, {{4}, {1}},  {{4}, {0}}, // 8
-        {{4}, {0}},  {{5}, {1}}, {{5}, {0}},  {{5}, {0}},
-        {{5}, {0}},  {{5}, {0}}, {{4}, {-1}}, {{4}, {0}}, // 16
-        {{3}, {-1}}, {{3}, {0}}, {{2}, {-1}}, {{2}, {0}},
-        {{1}, {-1}}, {{1}, {0}}, {{0}, {-1}}, {{0}, {0}}, // 24
+        // {0},  // 0
+        {1}, {1}, {2}, {2}, {3}, {3}, {4}, {4}, // 8
+        {4}, {5}, {5}, {5}, {5}, {5}, {4}, {4}, // 16
+        {3}, {3}, {2}, {2}, {1}, {1}, {0}, {0}, // 24
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -305,17 +274,14 @@ TEST_F(SegmentsExecutor1_Should, do_homing_and_other_commands) {
 
     while (executor.isRunning()) {
         executor.tick();
-        if (motor.current.x[0] == 0) {
+        if (motor.pos[0] == 0) {
             motor.isHit[0] = 1;
         }
     }
 
     Steps expected{
-        {{1}, {1}}, {{1}, {0}},  {{2}, {1}}, {{2}, {0}},  {{3}, {1}}, {{3}, {0}},
-
-        {{3}, {0}}, {{2}, {-1}}, {{2}, {0}}, {{1}, {-1}}, {{1}, {0}}, {{0}, {-1}}, {{0}, {0}},
-
-        {{1}, {1}}, {{1}, {0}},  {{2}, {1}}, {{2}, {0}},  {{3}, {1}}, {{3}, {0}},
+        {1}, {1}, {2}, {2}, {3}, {3}, {3}, {2}, {2}, {1},
+        {1}, {0}, {0}, {1}, {1}, {2}, {2}, {3}, {3},
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -328,7 +294,7 @@ TEST_F(SegmentsExecutor1_Should, callback_on_stopped) {
     process();
 
     Steps expected{
-        {{1}, {1}}, {{1}, {0}}, {{2}, {1}}, {{2}, {0}}, {{3}, {1}}, {{3}, {0}},
+        {1}, {1}, {2}, {2}, {3}, {3},
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
     EXPECT_THAT(stopped, Eq(true));
@@ -342,10 +308,8 @@ TEST_F(SegmentsExecutor2_Should, execute_one_linear_segment) {
     process();
 
     Steps expected{
-        // {{0, 5}, {0, 0}}, // 0
-        {{1, 4}, {1, -1}}, {{1, 4}, {0, 0}}, {{2, 3}, {1, -1}}, {{2, 3}, {0, 0}},
-        {{3, 2}, {1, -1}}, {{3, 2}, {0, 0}}, {{4, 1}, {1, -1}}, {{4, 1}, {0, 0}},
-        {{5, 0}, {1, -1}}, {{5, 0}, {0, 0}}, // 10
+        // {0, 5},  // 0
+        {1, 4}, {1, 4}, {2, 3}, {2, 3}, {3, 2}, {3, 2}, {4, 1}, {4, 1}, {5, 0}, {5, 0}, // 10
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
 }
@@ -356,7 +320,7 @@ TEST_F(SegmentsExecutor2_Should, wait) {
     process();
 
     EXPECT_THAT(motor.data, SizeIs(10));
-    EXPECT_THAT(motor.data, Each(Eq(Mm::Step({0, 0}, {0, 0}))));
+    EXPECT_THAT(motor.data, Each(Eq(Mm::Ai({0, 0}))));
 }
 
 TEST_F(SegmentsExecutor2_Should, handle_zero_ticks_wait) {
@@ -375,19 +339,17 @@ TEST_F(SegmentsExecutor2_Should, do_homing) {
 
     while (executor.isRunning()) {
         executor.tick();
-        if (motor.current.x[0] == -5) {
+        if (motor.pos[0] == -5) {
             motor.isHit[0] = 1;
         }
-        if (motor.current.x[1] == -3) {
+        if (motor.pos[1] == -3) {
             motor.isHit[1] = 1;
         }
     }
 
     Steps expected{
-        {{0, 0}, {0, 0}},    {{-1, 0}, {-1, 0}},  {{-1, -1}, {0, -1}}, {{-2, -1}, {-1, 0}},
-        {{-2, -1}, {0, 0}},  {{-3, -1}, {-1, 0}}, {{-3, -1}, {0, 0}},  {{-4, -2}, {-1, -1}},
-        {{-4, -2}, {0, 0}},  {{-5, -2}, {-1, 0}}, {{-5, -2}, {0, 0}},  {{-5, -2}, {0, 0}},
-        {{-5, -3}, {0, -1}}, {{-5, -3}, {0, 0}},
+        {0, 0},   {-1, 0},  {-1, -1}, {-2, -1}, {-2, -1}, {-3, -1}, {-3, -1},
+        {-4, -2}, {-4, -2}, {-5, -2}, {-5, -2}, {-5, -2}, {-5, -3}, {-5, -3},
     };
     EXPECT_THAT(motor.data, ContainerEq(expected));
     EXPECT_THAT(executor.position(), Eq(Ai{0, 0}));

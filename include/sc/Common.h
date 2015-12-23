@@ -7,11 +7,19 @@
 #include <limits>
 
 #ifdef __MBED__
+
 #define FORCE_INLINE __attribute__((always_inline))
 #define RESTRICT __restrict__
+#define MEM_BARRIER() asm volatile("" : : : "memory")
+
 #elif defined(_MSC_VER)
+
 #define FORCE_INLINE __forceinline
-#define RESTRICT
+#define RESTRICT __restrict
+#define MEM_BARRIER()
+
+inline void wait_us(int){};
+
 #else
 #error "Compiler isn't supported!"
 #endif

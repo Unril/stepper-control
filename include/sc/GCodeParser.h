@@ -17,8 +17,6 @@ class ParserException : public std::exception {
 };
 
 /*
-Parser accepts input line and calls corresponding callbacks.
-Note: strtof bug. If axis name is X then separate it from left 0. Not "a0x0" but "a0 x0".
 
 EBNF grammar
 
@@ -110,7 +108,13 @@ class GCodeParser {
         if (!isDigit() && !isSign() && sym() != '.') {
             return false;
         }
-        *value = strtof(pos_, const_cast<char **>(&pos_));
+        if (*pos_ == '0' && toupper(*(pos_ + 1)) == 'X') {
+            // Hex numbers parsing workaround.
+            *value = 0;
+            ++pos_;
+        } else {
+            *value = strtof(pos_, const_cast<char **>(&pos_));
+        }
         skipSpaces();
         return true;
     }

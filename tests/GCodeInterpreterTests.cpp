@@ -98,7 +98,7 @@ TEST_F(GCodeInterpreter_Should, add_only_different_coordinates) {
 }
 
 TEST_F(GCodeInterpreter_Should, round_to_nearest_step) {
-    interp.linearMove(Af{200.8, 100.2}, inf());
+    interp.linearMove(Af{200.8f, 100.2f}, inf());
     EXPECT_THAT(path(), ElementsAre(Ai{0, 0}, Ai{201, 100}));
 }
 
@@ -118,7 +118,7 @@ TEST_F(GCodeInterpreter_Should, override_only_valid_steps_per_unit_lenght) {
 
 TEST_F(GCodeInterpreter_Should, override_only_valid_max_accelerations) {
     interp.m101MaxAccelerationOverride(Af{inf(), 400.f});
-    EXPECT_THAT(interp.maxAcceleration(), ElementsAre(0.1f, 400.f));
+    EXPECT_THAT(interp.maxAcceleration(), ElementsAre(1.f, 400.f));
 
     interp.m101MaxAccelerationOverride(Af{100.f, inf()});
     EXPECT_THAT(interp.maxAcceleration(), ElementsAre(100.f, 400.f));
@@ -180,7 +180,7 @@ TEST_F(GCodeInterpreter_Should, override_homing_velocity_before_ticks_per_second
 
 TEST_F(GCodeInterpreter_Should, override_only_valid_max_velocities) {
     interp.m100MaxVelocityOverride(Af{inf(), 0.3f});
-    EXPECT_THAT(interp.maxVelocity(), ElementsAre(0.5f, 0.3f));
+    EXPECT_THAT(interp.maxVelocity(), ElementsAre(1.f, 0.3f));
 
     interp.m100MaxVelocityOverride(Af{0.1f, inf()});
     EXPECT_THAT(interp.maxVelocity(), ElementsAre(0.1f, 0.3f));
@@ -195,13 +195,13 @@ TEST_F(GCodeInterpreter_Should, add_relative_positions) {
     EXPECT_THAT(path(), ElementsAre(Ai{0, 0}, Ai{10, 100}, Ai{30, 100}, Ai{30, 300}, Ai{40, 400}));
 }
 
-TEST_F(GCodeInterpreter_Should, trim_max_velocity_to_one_half) {
+TEST_F(GCodeInterpreter_Should, trim_max_velocity) {
     interp.setTicksPerSecond(1000);
     interp.m102StepsPerUnitLengthOverride(Af{1.f, 2.f});
 
-    interp.m100MaxVelocityOverride(Af{100.f, 400.f});
+    interp.m100MaxVelocityOverride(Af{100.f, 1000.f});
 
-    EXPECT_THAT(interp.maxVelocity(), ElementsAre(0.1f, 0.5f));
+    EXPECT_THAT(interp.maxVelocity(), ElementsAre(0.1f, 1.f));
 }
 
 TEST_F(GCodeInterpreter_Should, home_and_move) {
@@ -360,21 +360,21 @@ TEST_F(GCodeInterpreter_Should, add_relative_positions_with_negative_spu) {
                 ElementsAre(Ai{0, 0}, Ai{10, -100}, Ai{30, -100}, Ai{30, -300}, Ai{40, -400}));
 }
 
-TEST_F(GCodeInterpreter_Should, trim_max_velocity_to_minus_one_half_with_negative_spu) {
+TEST_F(GCodeInterpreter_Should, trim_max_velocity_with_negative_spu) {
     interp.setTicksPerSecond(1000);
     interp.m102StepsPerUnitLengthOverride(Af{-1.f, -2.f});
 
-    interp.m100MaxVelocityOverride(Af{100.f, 400.f});
+    interp.m100MaxVelocityOverride(Af{100.f, 1000.f});
 
-    EXPECT_THAT(interp.maxVelocity(), ElementsAre(-0.1f, -0.5f));
+    EXPECT_THAT(interp.maxVelocity(), ElementsAre(-0.1f, -1.f));
 }
 
-TEST_F(GCodeInterpreter_Should, trim_max_homing_velocity_to_minus_one_half_with_negative_spu) {
+TEST_F(GCodeInterpreter_Should, trim_max_homing_velocity_with_negative_spu) {
     interp.setTicksPerSecond(1000);
     interp.m102StepsPerUnitLengthOverride(Af{-1.f, -2.f});
 
-    interp.m103HomingVelocityOverride(Af{100.f, 400.f});
+    interp.m103HomingVelocityOverride(Af{100.f, 1000.f});
 
-    EXPECT_THAT(interp.homingVelocity(), ElementsAre(-0.1f, -0.5f));
+    EXPECT_THAT(interp.homingVelocity(), ElementsAre(-0.1f, -1.f));
 }
 }

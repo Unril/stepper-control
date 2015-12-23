@@ -6,15 +6,15 @@
 
 namespace StepperControl {
 
- template <typename T = float>
- struct Clamp {
+template <typename T = float>
+struct Clamp {
     Clamp(T minV, T maxV) : minVal(minV), maxVal(maxV) {}
     T operator()(T val) { return std::min(maxVal, std::max(minVal, val)); }
     T minVal, maxVal;
 };
 
- template <typename T>
- Clamp<T> clamp(T minV, T maxV) {
+template <typename T>
+Clamp<T> clamp(T minV, T maxV) {
     return Clamp<T>(minV, maxV);
 }
 
@@ -26,13 +26,13 @@ struct Command {
         Af pos;
         Af vel;
         Af acc;
-        DistanceMode mode;    
+        DistanceMode mode;
     };
 
     struct WaitCmd {
         float sec;
     };
-    
+
     struct HomingCmd {
         Af vel;
     };
@@ -104,8 +104,8 @@ class GCodeInterpreter {
     using Cmd = Command<AxesTraits::size>;
 
     explicit GCodeInterpreter(ISegmentsExecutor *exec, Printer *printer = Printer::instance())
-        : executor_(exec), mode_(DistanceMode::Absolute), homingVelUnitsPerSec_(axConst<Af>(0.01f)),
-          maxVelUnitsPerSec_(axConst<Af>(0.5f)), maxAccUnitsPerSec2_(axConst<Af>(0.1f)),
+        : executor_(exec), mode_(DistanceMode::Absolute), homingVelUnitsPerSec_(axConst<Af>(1.f)),
+          maxVelUnitsPerSec_(axConst<Af>(1.f)), maxAccUnitsPerSec2_(axConst<Af>(1.f)),
           stepPerUnit_(axConst<Af>(1.f)), minPosUnits_(axInf<Af>()), maxPosUnits_(axInf<Af>()),
           ticksPerSec_(1), printer_(printer) {
         scAssert(exec != nullptr);
@@ -214,7 +214,7 @@ class GCodeInterpreter {
 
     void printCompleted() const {
         printCurrentPosition();
-        *printer_ << "Completed" << eol;
+        *printer_ << "Completed\r\n";
     }
 
     void clearCommandsBuffer() {
@@ -235,7 +235,7 @@ class GCodeInterpreter {
     // Steps per tick
     Af maxVelocity() const {
         return apply(maxVelUnitsPerSec_ * stepPerUnit_ / static_cast<float>(ticksPerSec_),
-                     clamp(-0.5f, 0.5f));
+                     clamp(-1.f, 1.f));
     }
 
     // Steps per tick per tick
@@ -249,7 +249,7 @@ class GCodeInterpreter {
     // Steps per tick
     Af homingVelocity() const {
         return apply(homingVelUnitsPerSec_ * stepPerUnit_ / static_cast<float>(ticksPerSec_),
-                     clamp(-0.5f, 0.5f));
+                     clamp(-1.f, 1.f));
     }
 
     // Steps

@@ -25,7 +25,7 @@ class SegmentsExecutor {
         : running_(false), motor_(motor), ticker_(ticker), position_(axZero<Ai>()),
           ticksPerSecond_(1), onStarted_(nullptr, nullptr), onStopped_(nullptr, nullptr) {
         scAssert(motor_ && ticker_);
-        it_ = end();
+        it_ = trajectory_.data() + trajectory_.size();
     }
 
     int32_t ticksPerSecond() const { return ticksPerSecond_; }
@@ -37,12 +37,12 @@ class SegmentsExecutor {
 
     void setTrajectory(Sgs const &segments) {
         trajectory_ = segments;
-        it_ = end();
+        it_ = trajectory_.data() + trajectory_.size();
     }
 
     void setTrajectory(Sgs &&segments) {
         trajectory_ = move(segments);
-        it_ = end();
+        it_ = trajectory_.data() + trajectory_.size();
     }
 
     Sgs const &segments() const { return trajectory_; }
@@ -55,17 +55,12 @@ class SegmentsExecutor {
         if (trajectory_.empty()) {
             return;
         }
-        it_ = begin();
+        it_ = trajectory_.data();
         running_ = true;
         currentTick_ = 0;
         if (onStarted_.first) {
             onStarted_.first(onStarted_.second);
         }
-
-        for (int i = 0; i < size; ++i) {
-            dir_[i] = false;
-        }
-        writeDir(StepperNumber<0>{});
 
         ticker_->attach_us(this, &SegmentsExecutor::tick, 1000000 / ticksPerSecond_);
     }
@@ -75,7 +70,7 @@ class SegmentsExecutor {
         if (dt > 0) {
             // Integrate next interval.
             tick0();
-        } else if (dt == 0 && ++it_ != end()) {
+        } else if (dt == 0 && ++it_ != (trajectory_.data() + trajectory_.size())) {
             // If there is next segment then integrate it's first interval.
             tick0();
         } else if (dt < 0) {
@@ -107,7 +102,7 @@ class SegmentsExecutor {
 
     void stop() {
         ticker_->detach();
-        it_ = end();
+        it_ = trajectory_.data() + trajectory_.size();
         running_ = false;
         currentTick_ = 0;
         if (onStopped_.first) {
@@ -120,30 +115,34 @@ class SegmentsExecutor {
     void setPosition(Ai const &position = axZero<Ai>()) { position_ = position; }
 
   private:
-    FORCE_INLINE Sg *begin() RESTRICT { return trajectory_.data(); }
-    FORCE_INLINE Sg *end() RESTRICT { return trajectory_.data() + trajectory_.size(); }
-
-    FORCE_INLINE void tick0() RESTRICT {
+    FORCE_INLINE void tick0() {
         motor_->begin();
 
         // Update time.
         --it_->dt;
         ++currentTick_;
 
-        shouldMakeAnyStep_ = false;
-        shouldChangeAnyDir_ = false;
+        anyStep_ = false;
+        anyDir_ = false;
 
-        updateDir(StepperNumber<0>{});
-
-        if (shouldChangeAnyDir_) {
-            writeDir(StepperNumber<0>{});
-            wait_us(4);
+        for (int i = 0; i < size; ++i) {
+            auto oldDir = dir_[i];
+            dir_[i] = it_->velocity[i] < 0;
+            if (oldDir != dir_[i]) {
+                anyDir_ = true;
+            }
         }
 
+        if (anyDir_) {
+            updateDir(StepperNumber<0>{});
+            wait_us(2);
+        }
+
+        // Dir and step writing are separated by error updates to provide delay between them.
         updateErr(StepperNumber<0>{});
 
-        if (shouldMakeAnyStep_) {
-            writeStep(StepperNumber<0>{});
+        if (anyStep_) {
+            updateStep(StepperNumber<0>{});
             wait_us(2);
             clearStep(StepperNumber<0>{});
         }
@@ -152,21 +151,8 @@ class SegmentsExecutor {
         motor_->end();
     }
 
-    // Integrate i-th axis.
     template <int i>
-    FORCE_INLINE void updateDir(StepperNumber<i>) RESTRICT {
-        auto oldDir = dir_[i];
-        dir_[i] = it_->velocity[i] < 0;
-        shouldChangeAnyDir_ = shouldChangeAnyDir_ || oldDir != dir_[i];
-
-        updateDir(StepperNumber<i + 1>{});
-    }
-
-    // All axes were integrated.
-    FORCE_INLINE void updateDir(StepperNumber<size>) RESTRICT {}
-
-    template <int i>
-    FORCE_INLINE void updateErr(StepperNumber<i>) RESTRICT {
+    FORCE_INLINE void updateErr(StepperNumber<i>) {
         // Update difference between rounded and actual position.
         it_->error[i] += it_->velocity[i];
 
@@ -180,8 +166,8 @@ class SegmentsExecutor {
             // Rising edge.
             position_[i] += sign;
 
-            shouldMakeAnyStep_ = true;
             step_[i] = true;
+            anyStep_ = true;
         } else {
             step_[i] = false;
         }
@@ -191,51 +177,51 @@ class SegmentsExecutor {
         updateErr(StepperNumber<i + 1>{});
     }
 
-    FORCE_INLINE void updateErr(StepperNumber<size>) RESTRICT {}
+    FORCE_INLINE void updateErr(StepperNumber<size>) {}
 
     // Integrate i-th axis.
     template <int i>
-    FORCE_INLINE void writeDir(StepperNumber<i>) RESTRICT {
+    FORCE_INLINE void updateDir(StepperNumber<i>) {
         motor_->writeDirection(StepperNumber<i>{}, dir_[i]);
 
-        writeDir(StepperNumber<i + 1>{});
+        updateDir(StepperNumber<i + 1>{});
     }
 
     // All axes were integrated.
-    FORCE_INLINE void writeDir(StepperNumber<size>) RESTRICT {}
+    FORCE_INLINE void updateDir(StepperNumber<size>) {}
 
     template <int i>
-    FORCE_INLINE void writeStep(StepperNumber<i>) RESTRICT {
+    FORCE_INLINE void updateStep(StepperNumber<i>) {
         motor_->writeStep(StepperNumber<i>{}, step_[i]);
 
-        writeStep(StepperNumber<i + 1>{});
+        updateStep(StepperNumber<i + 1>{});
     }
 
-    FORCE_INLINE void writeStep(StepperNumber<size>) RESTRICT {}
+    FORCE_INLINE void updateStep(StepperNumber<size>) {}
 
     template <int i>
-    FORCE_INLINE void clearStep(StepperNumber<i>) RESTRICT {
+    FORCE_INLINE void clearStep(StepperNumber<i>) {
         motor_->writeStep(StepperNumber<i>{}, false);
 
         clearStep(StepperNumber<i + 1>{});
     }
 
-    FORCE_INLINE void clearStep(StepperNumber<size>) RESTRICT {}
+    FORCE_INLINE void clearStep(StepperNumber<size>) {}
 
-    int32_t currentTick_{};
-    bool running_{};
+    std::atomic<int32_t> currentTick_{};
 
-    bool shouldMakeAnyStep_{};
-    bool shouldChangeAnyDir_{};
+    bool anyStep_{};
+    bool anyDir_{};
     bool step_[size]{};
     bool dir_[size]{};
 
-    Sg *RESTRICT it_{};
+    std::atomic<bool> running_{false};
+    Sg *RESTRICT it_;
     Sgs trajectory_;
-    TMotor *RESTRICT motor_{};
-    TTicker *RESTRICT ticker_{};
-    Ai position_{};
-    int32_t ticksPerSecond_{};
+    TMotor *motor_;
+    TTicker *ticker_;
+    Ai position_;
+    int32_t ticksPerSecond_;
     std::pair<Callback, void *> onStarted_;
     std::pair<Callback, void *> onStopped_;
 };

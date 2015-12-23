@@ -1,6 +1,7 @@
 #include "mbed.h"
 #include "FastIO.h"
 #include <atomic>
+#include <cstdio>
 
 #include <GCodeInterpreter.h>
 #include <GCodeParser.h>
@@ -65,18 +66,22 @@ static FastIn<PC_8> Switch4;
 static FastIn<PC_13> stopSwitch; // UserButton pulls up
 static FastOut<LED1> led;
 
+static const int bufferSize = 512;
+static char buffer[bufferSize];
+
 struct SerialPrinter : Printer {
     void print(const float *n, int size) override {
         if (size == 5) {
             pc.printf("%f, %f, %f, %f, %f", n[0], n[1], n[2], n[3], n[4]);
         } else if (size == 1) {
-            pc.printf("%f", *n);
+            pc.printf("%f", n[0]);
         } else {
             for (int i = 0; i < size; i++) {
                 pc.printf("%f%s", n[i], sep(i, size));
             }
         }
     }
+
     void print(const int32_t *n, int size) override {
         if (size == 5) {
             pc.printf("%ld, %ld, %ld, %ld, %ld", n[0], n[1], n[2], n[3], n[4]);
@@ -88,6 +93,7 @@ struct SerialPrinter : Printer {
             }
         }
     }
+
     void print(const char *str) override { pc.puts(str); }
 } static serialPrinter;
 
@@ -127,9 +133,9 @@ struct Motor {
 static Ticker ticker;
 
 static const unsigned axesSize = TestAxesTraits::size;
-static const int ticksPerSecond = 200 * 1000;
+static const int ticksPerSecond = 160 * 1000;
 static const float Pi = 3.14159265358979323846f;
-static const int notifyPositionIntervalMs = 200;
+static const int notifyPositionIntervalMs = 50;
 
 using Executor = SegmentsExecutor<Motor, Ticker, TestAxesTraits>;
 using Interpreter = GCodeInterpreter<Executor, TestAxesTraits>;
@@ -139,18 +145,18 @@ static Executor executor(&motor, &ticker);
 static Interpreter interpreter(&executor, &serialPrinter);
 static Parser parser(&interpreter);
 
-static const int bufferSize = 512;
-static char buffer[bufferSize];
+static void onStarted(void *) {
+    led.set();
+}
 
-static Timer timer;
+static std::atomic<bool> stopped{false};
 
-static void onStarted(void *) { led.set(); }
-
-static void onStopped(void *) { led.clear(); }
+static void onStopped(void *) {
+    led.clear();
+    stopped = true;
+}
 
 static void execute() {
-    bool wasRunning = false;
-
     executor.setOnStopped(&onStopped, nullptr);
     executor.setOnStarted(&onStarted, nullptr);
 
@@ -158,38 +164,33 @@ static void execute() {
 
     auto perRot = 1.f / (2.f * Pi);
     auto perRotPrism = 1.f / 5.f;
-    interpreter.m102StepsPerUnitLengthOverride({25000 * perRot, 6400 * perRotPrism,
-                                                200 * 16 * perRotPrism, 200 * 16 * perRotPrism,
-                                                25000 * perRot});
+    interpreter.m102StepsPerUnitLengthOverride(
+        {6400 * perRot, 6400 * perRotPrism, 6400 * perRotPrism, 6400 * perRotPrism, 6400 * perRot});
 
-    Interpreter::Af v = {0.6, 20, 20, 15, 1};
+    Interpreter::Af v = {0.5, 32, 32, 32, 1.5};
     interpreter.m100MaxVelocityOverride(v);
-    interpreter.m101MaxAccelerationOverride({1.2, 40, 40, 40, 2});
-    interpreter.m103HomingVelocityOverride(v * 0.33f);
+    interpreter.m101MaxAccelerationOverride({1, 60, 60, 60, 2});
+    interpreter.m103HomingVelocityOverride(v * 0.5f);
 
-    timer.start();
+    int32_t notifyInterval = ticksPerSecond * notifyPositionIntervalMs / 1000;
+    int32_t nextNotifyTick = notifyInterval;
 
     while (true) {
-        if (!stopSwitch && interpreter.isRunning()) {
-            interpreter.stop();
-        }
-
         while (pc.readable()) {
             if (fgets(buffer, bufferSize, pc)) {
                 parser.parseLine(buffer);
             }
         }
 
-        if (timer.read_ms() >= notifyPositionIntervalMs) {
-            if (executor.isRunning()) {
-                interpreter.printCurrentPosition();
-                wasRunning = true;
-            } else if (wasRunning) {
-                interpreter.printCompleted();
-                wasRunning = false;
-            }
+        if (executor.currentTick() >= nextNotifyTick) {
+            interpreter.printCurrentPosition();
+            nextNotifyTick = executor.currentTick() + notifyInterval;
+        }
 
-            timer.reset();
+        if (stopped == true) {
+            stopped = false;
+            nextNotifyTick = notifyInterval;
+            interpreter.printCompleted();
         }
     }
 }
@@ -248,10 +249,14 @@ void pinTest() {
 }
 
 // Full step from zero rounding
+// TODO: check step loss.
 
 int main() {
-    pc.baud(230400);
-    printf("Started\n");
+    pc.baud(115200);
+
+    pc.printf("SystemCoreClock = %d Hz\n\r", HAL_RCC_GetSysClockFreq());
+
+    pc.printf("Started\n");
 
     // buttonTest();
     // pinTest();

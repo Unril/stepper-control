@@ -1295,10 +1295,11 @@
 1448635498 c:\scanner\nucleo_printf\mbed\rtc_time.h
 	<time.h>
 
-1448872489 source:c:\scanner\stepper-control\stnucleof446\main.cpp
+1450807141 source:c:\scanner\stepper-control\stnucleof446\main.cpp
 	"mbed.h"
 	"FastIO.h"
 	<atomic>
+	<cstdio>
 	<GCodeInterpreter.h>
 	<GCodeParser.h>
 	<SegmentsExecutor.h>
@@ -1955,7 +1956,7 @@
 1448635498 c:\scanner\stepper-control\stnucleof446\mbed\pinmap.h
 	"PinNames.h"
 
-1448800914 c:\scanner\stepper-control\include\sc\gcodeparser.h
+1450788232 c:\scanner\stepper-control\include\sc\gcodeparser.h
 	"Interfaces.h"
 	<exception>
 
@@ -1972,7 +1973,7 @@
 	<cmath>
 	<cstdint>
 
-1448872048 c:\scanner\stepper-control\include\sc\common.h
+1450805386 c:\scanner\stepper-control\include\sc\common.h
 	<algorithm>
 	<cmath>
 	<cstdint>
@@ -1981,7 +1982,7 @@
 	<stdexcept>
 	<string>
 
-1448799811 c:\scanner\stepper-control\include\sc\gcodeinterpreter.h
+1450793434 c:\scanner\stepper-control\include\sc\gcodeinterpreter.h
 	"Interfaces.h"
 	"PathToTrajectoryConverter.h"
 	"TrajectoryToSegmentsConverter.h"
@@ -1993,7 +1994,7 @@
 	"Segment.h"
 	<algorithm>
 
-1448796699 c:\scanner\stepper-control\include\sc\segmentsexecutor.h
+1450807353 c:\scanner\stepper-control\include\sc\segmentsexecutor.h
 	"Interfaces.h"
 	<atomic>
 

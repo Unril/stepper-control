@@ -62,9 +62,6 @@
     <ClInclude Include="..\include\sc\TrajectoryToSegmentsConverter.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\include\sc\SegmentsExecutor.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
     <ClInclude Include="..\include\sc\Common.h">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -72,6 +69,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="..\include\sc\Interfaces.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\include\sc\SegmentsExecutor.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
