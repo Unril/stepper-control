@@ -1,20 +1,8 @@
 #pragma once
 
-#include "Interfaces.h"
-
-#include <exception>
+#include "Axes.h"
 
 namespace StepperControl {
-
-class ParserException : public std::exception {
-  public:
-    explicit ParserException(const char *msg) : msg_(msg) {}
-
-    const char *what() const throw() override { return msg_; }
-
-  private:
-    const char *msg_;
-};
 
 /*
 
@@ -57,29 +45,51 @@ clearCommandsBuffer = "^" "\n"
 printCurrentPosition = "?" "\n"
 line = ( start | stop | | clearCommandsBuffer | printCurrentPosition |
     linearMove | feedrateOverride | gCommand | mCommand | "\n" )
+
+
+struct IGCodeInterpreter {]
+  void feedrateOverride(float feed) {}
+  void linearMove(Af const &pos, float feed) {}
+  void g0RapidMove(Af const &pos) {}
+  void g1LinearMove(Af const &pos, float feed) {}
+  void g4Wait(float sec) {}
+  void g28RunHomingCycle() {}
+  void g90g91DistanceMode(DistanceMode) {}
+  void m100MaxVelocityOverride(Af const &vel) {}
+  void m101MaxAccelerationOverride(Af const &acc) {}
+  void m102StepsPerUnitLengthOverride(Af const &spl) {}
+  void m103HomingVelocityOverride(Af const &vel) {}
+  void m104PrintInfo() const = 0;
+  void m105MinPositionOverride(Af const &vel) {}
+  void m106MaxPositionOverride(Af const &vel) {}
+  void m110PrintAxesConfiguration() {}
+  void error(const char *reason, const char *pos, const char *str) {}
+  void start() {}
+  void stop() {}
+  bool isRunning() const = 0;
+  void printCurrentPosition() const = 0;
+  void clearCommandsBuffer() {}
+};
 */
 template <typename IGCodeInterpreter, typename AxesTraits = DefaultAxesTraits>
 class GCodeParser {
     using Af = TAf<AxesTraits::size>;
 
   public:
-    explicit GCodeParser(IGCodeInterpreter *cb) : pos_(nullptr), str_(nullptr), cb_(cb) {
-        scAssert(cb);
-    }
+    explicit GCodeParser(IGCodeInterpreter *cb) : cb_(cb) { scAssert(cb); }
 
     void parseLine(const char *str) {
         scAssert(str);
         str_ = str;
-        pos_ = str;
+        curr_ = str;
+        err_ = nullptr;
         skipSpaces();
-        try {
-            line();
-        } catch (std::exception const &e) {
+
+        line();
+
+        if (err_) {
             cb_->clearCommandsBuffer();
-            cb_->error(e.what());
-        } catch (...) {
-            cb_->clearCommandsBuffer();
-            cb_->error("unknown");
+            cb_->error(err_, curr_ - str_, str_);
         }
     }
 
@@ -99,7 +109,7 @@ class GCodeParser {
         if (!isDigit()) {
             return false;
         }
-        *value = strtoul(pos_, const_cast<char **>(&pos_), 10);
+        *value = strtoul(curr_, const_cast<char **>(&curr_), 10);
         skipSpaces();
         return true;
     }
@@ -108,12 +118,12 @@ class GCodeParser {
         if (!isDigit() && !isSign() && sym() != '.') {
             return false;
         }
-        if (*pos_ == '0' && toupper(*(pos_ + 1)) == 'X') {
+        if (*curr_ == '0' && toupper(*(curr_ + 1)) == 'X') {
             // Hex numbers parsing workaround.
             *value = 0;
-            ++pos_;
+            ++curr_;
         } else {
-            *value = strtof(pos_, const_cast<char **>(&pos_));
+            *value = strtof(curr_, const_cast<char **>(&curr_));
         }
         skipSpaces();
         return true;
@@ -133,8 +143,7 @@ class GCodeParser {
             return false;
         }
         if (!floating(value)) {
-            error("expect floating value");
-            return false;
+            return error("expect floating value");
         }
         return true;
     }
@@ -157,8 +166,7 @@ class GCodeParser {
         }
         nextsym();
         if (!floating(feed)) {
-            error("expect floating feed");
-            return false;
+            return error("expect floating feed");
         }
         return true;
     }
@@ -219,14 +227,12 @@ class GCodeParser {
 
     bool g4Wait() {
         if (!isPause()) {
-            error("expect P");
-            return false;
+            return error("expect P");
         }
         nextsym();
         float sec = 0;
         if (!floating(&sec)) {
-            error("expect floating seconds");
-            return false;
+            return error("expect floating seconds");
         }
         if (!expectNewLine()) {
             return false;
@@ -266,8 +272,7 @@ class GCodeParser {
         nextsym();
         int32_t command = 0;
         if (!integer(&command)) {
-            error("expect integer command");
-            return false;
+            return error("expect integer command");
         }
         switch (command) {
         case 0:
@@ -283,8 +288,7 @@ class GCodeParser {
         case 91:
             return g91RelativeDistanceMode();
         default:
-            error("unknown G command");
-            return false;
+            return error("unknown G command");
         }
     }
 
@@ -371,8 +375,7 @@ class GCodeParser {
         nextsym();
         int32_t command = 0;
         if (!integer(&command)) {
-            error("expect integer command");
-            return false;
+            return error("expect integer command");
         }
         switch (command) {
         case 100:
@@ -392,8 +395,7 @@ class GCodeParser {
         case 110:
             return m110PrintAxesConfiguration();
         default:
-            error("unknown M command");
-            return false;
+            return error("unknown M command");
         }
     }
 
@@ -475,8 +477,7 @@ class GCodeParser {
 
     bool expectNewLine() {
         if (!isNewLine()) {
-            error("expect new line");
-            return false;
+            return error("expect new line");
         }
         nextsym();
         return true;
@@ -519,34 +520,29 @@ class GCodeParser {
 
     void skipSpaces() {
         while (isSpace()) {
-            ++pos_;
+            ++curr_;
         }
     }
 
-    void nextsym() {
+    bool nextsym() {
         if (sym() == 0) {
-            error("expect symbol");
+            return error("expect symbol");
         }
-        ++pos_;
+        ++curr_;
         skipSpaces();
+        return true;
     }
 
-    char sym() const { return *pos_; }
+    char sym() const { return *curr_; }
 
-    void error(const char *reason) const {
-        const int buffLen = 128;
-        static char buff[buffLen];
-        auto pos = static_cast<int>(pos_ - str_);
-#ifdef __MBED__
-        sprintf(buff, "%s at %d in %s", reason, pos, str_);
-#else
-        sprintf_s(buff, buffLen, "%s at %d in %s", reason, pos, str_);
-#endif
-        throw ParserException(buff);
+    bool error(const char *reason) {
+        err_ = reason;
+        return false;
     }
 
-    const char *pos_;
-    const char *str_;
-    IGCodeInterpreter *cb_;
+    const char *curr_{};
+    const char *str_{};
+    const char *err_{};
+    IGCodeInterpreter *cb_{};
 };
 }

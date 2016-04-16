@@ -404,6 +404,17 @@ inline Printer &operator<<(Printer &p, Axes<T, Size> const &a) {
     p.print(a.data(), Size);
     return p;
 }
+
+template <size_t size>
+using TAf = Axes<float, size>;
+
+template <size_t size>
+using TAi = Axes<int32_t, size>;
+
+struct DefaultAxesTraits {
+    static const unsigned size = 9;
+    static const char *names() { return "ABCUVWXYZ"; }
+};
 }
 
 #ifndef __MBED__

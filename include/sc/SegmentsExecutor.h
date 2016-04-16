@@ -1,8 +1,6 @@
 #pragma once
 
-#include "Interfaces.h"
-
-#include <atomic>
+#include "Segment.h"
 
 namespace StepperControl {
 template <int i>

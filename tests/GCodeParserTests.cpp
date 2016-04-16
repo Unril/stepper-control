@@ -7,6 +7,7 @@
 
 using namespace StepperControl;
 using namespace testing;
+using namespace std;
 
 namespace {
 
@@ -39,10 +40,10 @@ struct GCodeParserCallbacksMock {
     MOCK_CONST_METHOD0(m104PrintInfo, void());
     MOCK_METHOD0(clearCommandsBuffer, void());
 
-    void error(const char *reason) {
-        std::stringstream ss;
-        ss << "Error " << reason << std::endl;
-        throw std::logic_error(ss.str());
+    void error(const char *reason, ptrdiff_t at, const char *str) {
+        stringstream ss;
+        ss << "Error " << reason << " at " << at << " in " << str << endl;
+        throw logic_error(ss.str());
     }
 };
 
@@ -52,7 +53,7 @@ struct GCodeParser_Should : Test {
     GCodeParserCallbacksMock cb_;
     GCodeParser<GCodeParserCallbacksMock, AxTr> parser_{&cb_};
 
-    void parse(std::string const &line) { parser_.parseLine(line.c_str()); }
+    void parse(string const &line) { parser_.parseLine(line.c_str()); }
 };
 
 TEST_F(GCodeParser_Should, parse_empty_line) {
@@ -324,5 +325,4 @@ TEST_F(GCodeParser_Should, parse_lines_with_axes_written_together) {
     parse("a1x10\n");
     parse("a0x0\n");
 }
-
 }

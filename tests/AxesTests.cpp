@@ -7,6 +7,7 @@
 
 using namespace StepperControl;
 using namespace testing;
+using namespace std;
 
 namespace {
 
@@ -146,9 +147,9 @@ TEST_F(Axes_Should, calculate_norm) {
 
 TEST_F(Axes_Should, apply_function) {
     auto a = Af2{3.f, 4.f};
-    applyInplace(a, [](float v){return v*10;});
+    applyInplace(a, [](float v) { return v * 10; });
 
-    EXPECT_THAT(apply<float>(a, [](float v){return v*2;}), ElementsAre(60.f, 80.f));
+    EXPECT_THAT(apply<float>(a, [](float v) { return v * 2; }), ElementsAre(60.f, 80.f));
     EXPECT_THAT(a, ElementsAre(30.f, 40.f));
 }
 
@@ -163,10 +164,9 @@ TEST_F(Axes_Should, copy_finite_axes) {
 
 TEST_F(Axes_Should, accumulate) {
     auto a = Af2{3.f, 4.f};
-    auto b = accumulate(a, [](float curr, float acc) { return curr + acc;}, 1.f);
+    auto b = accumulate(a, [](float curr, float acc) { return curr + acc; }, 1.f);
 
     EXPECT_THAT(a, ElementsAre(3.f, 4.f));
     EXPECT_THAT(b, Eq(8.f));
 }
-
 }

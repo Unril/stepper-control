@@ -35,8 +35,8 @@ inline void wait_us(int){};
 
 #else
 
-#include <stdexcept>
 #include <string>
+#include <stdexcept>
 
 #define scAssert(_Expression)                                                                      \
     do {                                                                                           \
@@ -49,17 +49,15 @@ inline void wait_us(int){};
 
 namespace StepperControl {
 
-inline int32_t lTruncTowardZero(float v) { return static_cast<int32_t>(v); }
+inline auto lTruncTowardZero(float v) -> int32_t { return static_cast<int32_t>(v); }
 
-inline int32_t lTruncTowardInf(float v) {
+inline auto lTruncTowardInf(float v) -> int32_t {
     return static_cast<int32_t>(v < 0.0f ? floor(v) : ceil(v));
 }
 
-inline float inf() { return std::numeric_limits<float>::infinity(); }
+constexpr auto inf() -> float { return std::numeric_limits<float>::infinity(); }
 
-namespace {
-const char *eol = "\r\n";
-}
+constexpr const auto *eol = "\r\n";
 
 inline const char *sep(int i, int size) { return i == size - 1 ? "" : ", "; }
 
@@ -89,7 +87,7 @@ struct Printer {
 };
 
 template <typename T>
-inline auto operator<<(Printer &p, T n) ->
+auto operator<<(Printer &p, T n) ->
     typename std::enable_if<std::is_integral<T>::value, Printer &>::type {
     auto val = static_cast<int32_t>(n);
     p.print(&val, 1);
@@ -105,4 +103,6 @@ inline auto operator<<(Printer &p, const char *str) -> Printer & {
     p.print(str);
     return p;
 }
+
+enum class DistanceMode { Absolute, Relative };
 }

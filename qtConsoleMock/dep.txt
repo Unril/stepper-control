@@ -1,0 +1,1 @@
+C:\Qt\5.3\msvc2013_64_opengl\bin

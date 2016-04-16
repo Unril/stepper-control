@@ -27,45 +27,46 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *******************************************************************************
  */
-#ifndef MBED_DEVICE_H
-#define MBED_DEVICE_H
 
-#define DEVICE_PORTIN           1
-#define DEVICE_PORTOUT          1
-#define DEVICE_PORTINOUT        1
+#ifndef MBED_PERIPHERALPINS_H
+#define MBED_PERIPHERALPINS_H
 
-#define DEVICE_INTERRUPTIN      1
+#include "pinmap.h"
+#include "PeripheralNames.h"
 
-#define DEVICE_ANALOGIN         1
-#define DEVICE_ANALOGOUT        1
+//*** ADC ***
 
-#define DEVICE_SERIAL           1
+extern const PinMap PinMap_ADC[];
 
-#define DEVICE_I2C              1
-#define DEVICE_I2CSLAVE         1
+//*** DAC ***
 
-#define DEVICE_SPI              1
-#define DEVICE_SPISLAVE         1
+extern const PinMap PinMap_DAC[];
 
-#define DEVICE_RTC              1
+//*** I2C ***
 
-#define DEVICE_PWMOUT           1
+extern const PinMap PinMap_I2C_SDA[];
+extern const PinMap PinMap_I2C_SCL[];
 
-#define DEVICE_SLEEP            1
+//*** PWM ***
 
-//=======================================
+extern const PinMap PinMap_PWM[];
 
-#define DEVICE_SEMIHOST         0
-#define DEVICE_LOCALFILESYSTEM  0
-#define DEVICE_ID_LENGTH       24
+//*** SERIAL ***
 
-#define DEVICE_DEBUG_AWARENESS  0
+extern const PinMap PinMap_UART_TX[];
+extern const PinMap PinMap_UART_RX[];
+extern const PinMap PinMap_UART_RTS[];
+extern const PinMap PinMap_UART_CTS[];
 
-#define DEVICE_STDIO_MESSAGES   1
+//*** SPI ***
 
-#define DEVICE_ERROR_RED        1
-#define LED_RED                 LED1
+extern const PinMap PinMap_SPI_MOSI[];
+extern const PinMap PinMap_SPI_MISO[];
+extern const PinMap PinMap_SPI_SCLK[];
+extern const PinMap PinMap_SPI_SSEL[];
 
-#include "objects.h"
+//*** CAN ***
+extern const PinMap PinMap_CAN_RD[];
+extern const PinMap PinMap_CAN_TD[];
 
 #endif

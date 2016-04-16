@@ -7,6 +7,7 @@
 
 using namespace StepperControl;
 using namespace testing;
+using namespace std;
 
 namespace {
 struct AxTr {
@@ -338,9 +339,9 @@ TEST_F(GCodeInterpreter_Should, print_axes_configuration) {
 }
 
 TEST_F(GCodeInterpreter_Should, print_error) {
-    interp.error("test");
+    interp.error("test", 0, "str");
 
-    EXPECT_THAT(printer.ss.str(), StrEq("Error: test\r\n"));
+    EXPECT_THAT(printer.ss.str(), StrEq("Error: test at 0 in str\r\n"));
 }
 
 TEST_F(GCodeInterpreter_Should, set_negative_spu) {

@@ -2,6 +2,8 @@
 
 #include "Axes.h"
 
+#include <vector>
+
 namespace StepperControl {
 
 const int32_t int32Max = std::numeric_limits<int32_t>::max();
@@ -133,4 +135,10 @@ struct Segment {
     int64_t denominator;
     Al error;
 };
+
+template <size_t size>
+using TSg = Segment<size>;
+
+template <size_t size>
+using TSgs = std::vector<TSg<size>>;
 }

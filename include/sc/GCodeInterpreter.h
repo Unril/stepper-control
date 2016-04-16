@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Interfaces.h"
+#include "Segment.h"
 #include "PathToTrajectoryConverter.h"
 #include "TrajectoryToSegmentsConverter.h"
 
@@ -94,7 +94,21 @@ struct Command {
     }
 };
 
-// Interpreter reacts to callbacks from parser and creates commands from them.
+/*
+ Interpreter reacts to callbacks from parser and creates commands from them.
+
+
+struct ISegmentsExecutor {
+    virtual void start() {}
+    virtual void stop() {}
+    virtual bool isRunning() const {}
+    virtual Ai const &position() const {}
+    virtual void setPosition(Ai const &) {}
+    virtual void setSegments(Sgs const &) {}
+    virtual void setSegments(Sgs &&) {}
+    virtual void setTicksPerSecond(int32_t) {}
+};
+ */
 template <typename ISegmentsExecutor, typename AxesTraits = DefaultAxesTraits>
 class GCodeInterpreter {
   public:
@@ -193,11 +207,14 @@ class GCodeInterpreter {
     // Others
     ///////////////////////////////////////////////////////////////////////////
 
-    void error(const char *reason) const { *printer_ << "Error: " << reason << eol; }
+    void error(const char *reason, ptrdiff_t pos, const char *str) const {
+        *printer_ << "Error: " << reason << " at " << static_cast<int>(pos) << " in " << str << eol;
+    }
 
     void start() {
         if (executor_->isRunning()) {
-            error("already running");
+            *printer_ << "Error: "
+                      << "already running" << eol;
             return;
         }
         loadSegmentsToExecutor();

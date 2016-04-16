@@ -2,7 +2,6 @@
 
 #include "../include/sc/GCodeInterpreter.h"
 #include "../include/sc/GCodeParser.h"
-#include "../include/sc/Interfaces.h"
 #include "../include/sc/SegmentsExecutor.h"
 
 #include <QDebug>
