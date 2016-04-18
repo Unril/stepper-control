@@ -310,6 +310,28 @@ TEST_F(GCodeParser_Should, parse_axes_in_differen_order) {
     parse("c30x20a10\n");
 }
 
+TEST_F(GCodeParser_Should, test_strtofWithoutHex) {
+    const char *end{};
+    EXPECT_THAT(strtofWithoutHex("123", &end), FloatEq(123.f));
+    EXPECT_THAT(strtofWithoutHex("   123", &end), FloatEq(123.f));
+    EXPECT_THAT(strtofWithoutHex("   +123", &end), FloatEq(123.f));
+    EXPECT_THAT(strtofWithoutHex(" -123", &end), FloatEq(-123.f));
+    EXPECT_THAT(strtofWithoutHex("  1.23", &end), FloatEq(1.23f));
+    EXPECT_THAT(strtofWithoutHex("+1.23", &end), FloatEq(1.23f));
+    EXPECT_THAT(strtofWithoutHex("-1.23", &end), FloatEq(-1.23f));
+    EXPECT_THAT(strtofWithoutHex("1.23", &end), FloatEq(1.23f));
+    EXPECT_THAT(strtofWithoutHex("   0  x   2 ", &end), FloatEq(0.f));
+    EXPECT_THAT(strtofWithoutHex("   0  x  2", &end), FloatEq(0.f));
+    EXPECT_THAT(strtofWithoutHex("0x2", &end), FloatEq(0.f));
+    EXPECT_THAT(strtofWithoutHex("-0x2", &end), FloatEq(0.f));
+    EXPECT_THAT(strtofWithoutHex("+0x2", &end), FloatEq(0.f));
+    EXPECT_THAT(strtofWithoutHex("1x2", &end), FloatEq(1.f));
+    EXPECT_THAT(strtofWithoutHex("-1x2", &end), FloatEq(-1.f));
+    EXPECT_THAT(strtofWithoutHex("+1x2", &end), FloatEq(1.f));
+    EXPECT_THAT(strtofWithoutHex("  1x2", &end), FloatEq(1.f));
+    EXPECT_THAT(strtofWithoutHex("  1   x  2", &end), FloatEq(1.f));
+}
+
 TEST_F(GCodeParser_Should, parse_a0x1) {
     EXPECT_CALL(cb_, linearMove(ElementsAre(0.f, 1.f, inf()), Eq(inf())));
     parse("a0x1\r\n");

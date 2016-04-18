@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Segment.h"
 #include "PathToTrajectoryConverter.h"
+#include "Segment.h"
 #include "TrajectoryToSegmentsConverter.h"
 
 namespace StepperControl {
@@ -213,8 +213,7 @@ class GCodeInterpreter {
 
     void start() {
         if (executor_->isRunning()) {
-            *printer_ << "Error: "
-                      << "already running" << eol;
+            *printer_ << "Error: already running" << eol;
             return;
         }
         loadSegmentsToExecutor();
@@ -336,8 +335,8 @@ class GCodeInterpreter {
     }
 
     void loadSegmentsToExecutor() {
-        auto points = std::vector<Ai>();
-        auto trajectory = std::vector<Sg>();
+        std::vector<Ai> points;
+        std::vector<Sg> trajectory;
 
         auto currPos = executor_->position();
         auto acc = axZero<Af>();
@@ -349,12 +348,12 @@ class GCodeInterpreter {
             }
             auto lastPoint = points.back();
 
-            auto trajGen = PathToTrajectoryConverter<AxesTraits::size>(points);
+            PathToTrajectoryConverter<AxesTraits::size> trajGen(points);
             trajGen.setMaxVelocity(vel);
             trajGen.setMaxAcceleration(acc);
             trajGen.update();
 
-            auto segGen = TrajectoryToSegmentsConverter<AxesTraits::size>(points);
+            TrajectoryToSegmentsConverter<AxesTraits::size> segGen(points);
             segGen.setBlendDurations(move(trajGen.blendDurations()));
             segGen.setDurations(move(trajGen.durations()));
             segGen.appendTo(trajectory);

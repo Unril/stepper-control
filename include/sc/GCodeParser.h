@@ -19,7 +19,7 @@ axesWithFeedrate = axesFloat [feedrate]
 
 g0RapidMove = [axesFloat] "\n"
 g1LinearMove = [axesWithFeedrate] "\n"
-g4Wait = "P" floatind "\n"
+g4Wait = "P" floating "\n"
 g28RunHomingCycle = "\n"
 g90AbsoluteDistanceMode = "\n"
 g91RelativeDistanceMode = "\n"
@@ -71,6 +71,25 @@ struct IGCodeInterpreter {]
   void clearCommandsBuffer() {}
 };
 */
+
+inline float strtofWithoutHex(const char *str, const char **str_end) {
+    while (isspace(*str)) {
+        ++str;
+    }
+    auto s = str;
+    if (*s == '+' || *s == '-') {
+        ++s;
+    }
+    if (*s == '0') {
+        ++s;
+        *str_end = s;
+        if (*s == 'x' || *s == 'X') {
+            return 0.f;
+        }
+    }
+    return strtof(str, const_cast<char **>(str_end));
+}
+
 template <typename IGCodeInterpreter, typename AxesTraits = DefaultAxesTraits>
 class GCodeParser {
     using Af = TAf<AxesTraits::size>;
@@ -118,13 +137,7 @@ class GCodeParser {
         if (!isDigit() && !isSign() && sym() != '.') {
             return false;
         }
-        if (*curr_ == '0' && toupper(*(curr_ + 1)) == 'X') {
-            // Hex numbers parsing workaround.
-            *value = 0;
-            ++curr_;
-        } else {
-            *value = strtof(curr_, const_cast<char **>(&curr_));
-        }
+        *value = strtofWithoutHex(curr_, &curr_);
         skipSpaces();
         return true;
     }

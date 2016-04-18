@@ -48,23 +48,23 @@ struct Stepper {
 
 static FastOut<PC_1> Step0;
 static FastOut<PC_0> Dir0;
-static FastIn<PB_8> Switch0;
+static FastIn<PB_8, PullDown> Switch0;
 
 static FastOut<PA_4> Step1;
 static FastOut<PB_0> Dir1;
-static FastIn<PC_9> Switch1;
+static FastIn<PC_9, PullDown> Switch1;
 
 static FastOut<PA_0> Step2;
 static FastOut<PA_1> Dir2;
-static FastIn<PC_5> Switch2;
+static FastIn<PC_5, PullDown> Switch2;
 
 static FastOut<PC_2> Step3;
 static FastOut<PC_3> Dir3;
-static FastIn<PC_6> Switch3;
+static FastIn<PC_6, PullDown> Switch3;
 
 static FastOut<PC_10> Step4;
 static FastOut<PC_12> Dir4;
-static FastIn<PC_8> Switch4;
+static FastIn<PC_8, PullDown> Switch4;
 
 static FastIn<PC_13> stopSwitch; // UserButton pulls up
 static FastOut<LED1> led;
@@ -122,7 +122,7 @@ struct Motor {
 		Dir0 = !dir;
 	}
 	FORCE_INLINE void writeDirection(StepperNumber<1>, bool dir) {
-		Dir1 = dir;
+		Dir1 = !dir;
 	}
 	FORCE_INLINE void writeDirection(StepperNumber<2>, bool dir) {
 		Dir2 = dir;
@@ -162,7 +162,7 @@ static Ticker ticker;
 static const unsigned axesSize = TestAxesTraits::size;
 static const int ticksPerSecond = 160 * 1000;
 static const float Pi = 3.14159265358979323846f;
-static const int notifyPositionIntervalMs = 50;
+static const int notifyPositionIntervalMs = 100;
 
 using Executor = SegmentsExecutor<Motor, Ticker, TestAxesTraits>;
 using Interpreter = GCodeInterpreter<Executor, TestAxesTraits>;
@@ -189,17 +189,17 @@ static void execute() {
 
 	interpreter.setTicksPerSecond(ticksPerSecond);
 
-	auto perRot = 1.f / (2.f * Pi);
+	auto reduction = 72.f/15.f; // 4.8
+	auto perRot = 2.f * reduction * 1.f / (2.f * Pi);
 	auto perRotPrism = 1.f / 5.f;
-	Interpreter::Af spu = { 6400 * perRot, 6400 * perRotPrism, 6400
-			* perRotPrism, 6400 * perRotPrism, 6400 * perRot };
-	Interpreter::Af v = { 0.5, 32, 32, 32, 1.5 };
-	Interpreter::Af a = { 1, 60, 60, 60, 2 };
+	Interpreter::Af spu { 6400 * perRot, 6400 * perRotPrism, 6400 * perRotPrism, 6400 * perRotPrism, 6400 * perRot };
+	Interpreter::Af v { 0.5f, 32.f, 32.f, 32.f, 1.f };
+	Interpreter::Af a { 1.f, 60.f, 60.f, 60.f, 2.f };
 
 	interpreter.m102StepsPerUnitLengthOverride(spu);
 	interpreter.m100MaxVelocityOverride(v);
 	interpreter.m101MaxAccelerationOverride(a);
-	interpreter.m103HomingVelocityOverride(v * 0.5f);
+	interpreter.m103HomingVelocityOverride(v*0.4f);
 
 	int32_t notifyInterval = ticksPerSecond * notifyPositionIntervalMs / 1000;
 	int32_t nextNotifyTick = notifyInterval;
@@ -225,7 +225,7 @@ static void execute() {
 }
 
 void buttonTest() {
-	bool prevState[5] = { };
+	bool prevState[axesSize] = {0};
 	while (true) {
 		if (pc.readable()) {
 			fgets(buffer, sizeof(buffer), pc);
@@ -235,7 +235,7 @@ void buttonTest() {
 			}
 		}
 
-		for (int i = 0; i <= 5; ++i) {
+		for (size_t i = 0; i < axesSize; ++i) {
 			bool newState = motor.checkEndSwitchHit(i);
 			if (prevState[i] != newState) {
 				printf("Switch %d: %d -> %d\r\n", i, prevState[i], newState);
@@ -279,7 +279,7 @@ void pinTest() {
 
 // Full step from zero rounding
 // TODO: check step loss.
-
+// TODO: add test switch command
 int main() {
 	pc.baud(115200);
 
@@ -287,7 +287,7 @@ int main() {
 
 	pc.printf("Started\n");
 
-	// buttonTest();
+	//buttonTest();
 	//pinTest();
 	execute();
 	return 0;

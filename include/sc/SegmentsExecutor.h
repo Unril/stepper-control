@@ -50,22 +50,21 @@ class SegmentsExecutor {
     void setOnStopped(Callback func, void *payload) { onStopped_ = std::make_pair(func, payload); }
 
     void start() {
-        if (trajectory_.empty()) {
-            return;
+        if (onStarted_.first) {
+            onStarted_.first(onStarted_.second);
         }
         it_ = begin();
         running_ = true;
         currentTick_ = 0;
-        if (onStarted_.first) {
-            onStarted_.first(onStarted_.second);
-        }
-
         for (int i = 0; i < size; ++i) {
             dir_[i] = false;
         }
         writeDir(StepperNumber<0>{});
-
-        ticker_->attach_us(this, &SegmentsExecutor::tick, 1000000 / ticksPerSecond_);
+        if (!trajectory_.empty()) {
+            ticker_->attach_us(this, &SegmentsExecutor::tick, 1000000 / ticksPerSecond_);
+        } else {
+            stop();
+        }
     }
 
     void tick() {
