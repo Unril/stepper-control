@@ -116,4 +116,60 @@ TEST_F(PathToTrajectoryConverter_Should, not_change_first_or_last_points) {
     };
     EXPECT_THAT(path, ContainerEq(expected));
 }
+
+TEST_F(PathToTrajectoryConverter_Should, corner_case_1) {
+    double vMax = 0.5f, aMax = 0.003f;
+    int x = 40;
+    gen.setMaxVelocity(axConst<Af>(vMax));
+    gen.setMaxAcceleration(axConst<Af>(aMax));
+
+    path.push_back({0, 0});
+    path.push_back({0, x});
+
+    update();
+
+    auto DT = x / vMax;
+    auto tb = vMax / aMax;
+    while (tb > DT) {
+        auto f = sqrt(DT / tb);
+        DT = DT / f;
+        vMax = f * vMax;
+        tb = vMax / aMax;
+    }
+
+    EXPECT_THAT(gen.velocities(), ElementsAre(Af{0, static_cast<float>(vMax)}));
+    EXPECT_THAT(gen.durations(), ElementsAre(static_cast<float>(tb)));
+    EXPECT_THAT(gen.accelerations(),
+                ElementsAre(Af{0, static_cast<float>(aMax)}, Af{0, -static_cast<float>(aMax)}));
+    EXPECT_THAT(gen.blendDurations(),
+                ElementsAre(FloatEq(static_cast<float>(tb)), FloatEq(static_cast<float>(tb))));
+}
+
+TEST_F(PathToTrajectoryConverter_Should, corner_case_2) {
+    double vMax = 0.45f, aMax = 0.003f;
+    int x = 40;
+    gen.setMaxVelocity(axConst<Af>(vMax));
+    gen.setMaxAcceleration(axConst<Af>(aMax));
+
+    path.push_back({0, 0});
+    path.push_back({0, x});
+
+    update();
+
+    auto DT = x / vMax;
+    auto tb = vMax / aMax;
+    while (tb > DT) {
+        auto f = sqrt(DT / tb);
+        DT = DT / f;
+        vMax = f * vMax;
+        tb = vMax / aMax;
+    }
+
+    EXPECT_THAT(gen.velocities(), ElementsAre(Af{0, static_cast<float>(vMax)}));
+    EXPECT_THAT(gen.durations(), ElementsAre(static_cast<float>(tb)));
+    EXPECT_THAT(gen.accelerations(),
+                ElementsAre(Af{0, static_cast<float>(aMax)}, Af{0, -static_cast<float>(aMax)}));
+    EXPECT_THAT(gen.blendDurations(),
+                ElementsAre(FloatEq(static_cast<float>(tb)), FloatEq(static_cast<float>(tb))));
+}
 }

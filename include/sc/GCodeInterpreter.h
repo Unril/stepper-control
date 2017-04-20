@@ -133,7 +133,7 @@ class GCodeInterpreter {
     void feedrateOverride(float) {}
 
     // Max velocity and acceleration should be set before this call.
-    void linearMove(Af const &positionInUnits, float feed = inf()) {
+    void linearMove(Af const &positionInUnits, float /*feed*/ = inf()) {
         commands_.emplace_back(positionInUnits, maxVelocity(), maxAcceleration(), mode_);
     }
 
@@ -335,8 +335,8 @@ class GCodeInterpreter {
     }
 
     void loadSegmentsToExecutor() {
-        std::vector<Ai> points;
-        std::vector<Sg> trajectory;
+        auto points = std::vector<Ai>();
+        auto trajectory = std::vector<Sg>();
 
         auto currPos = executor_->position();
         auto acc = axZero<Af>();
@@ -348,12 +348,12 @@ class GCodeInterpreter {
             }
             auto lastPoint = points.back();
 
-            PathToTrajectoryConverter<AxesTraits::size> trajGen(points);
+            auto trajGen = PathToTrajectoryConverter<AxesTraits::size>(points);
             trajGen.setMaxVelocity(vel);
             trajGen.setMaxAcceleration(acc);
             trajGen.update();
 
-            TrajectoryToSegmentsConverter<AxesTraits::size> segGen(points);
+            auto segGen = TrajectoryToSegmentsConverter<AxesTraits::size>(points);
             segGen.setBlendDurations(move(trajGen.blendDurations()));
             segGen.setDurations(move(trajGen.durations()));
             segGen.appendTo(trajectory);

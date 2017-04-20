@@ -16,8 +16,8 @@ using namespace std;
 namespace {
 
 struct AxTr {
-    static const int size = 2;
-    static const char *names() { return "AB"; }
+    static const int size = 5;
+    static const char *names() { return "AXYZB"; }
 };
 
 using Af = TAf<AxTr::size>;
@@ -74,7 +74,7 @@ struct Integration_Should : Test {
         interpreter.m101MaxAccelerationOverride(axConst<Af>(100.f));
     }
 
-    void update() {
+    void run() {
         interpreter.start();
         while (executor.isRunning()) {
             executor.tick();
@@ -83,24 +83,40 @@ struct Integration_Should : Test {
 };
 
 TEST_F(Integration_Should, create_an_execute_trajectory_from_random_path_points) {
-    for (int i = 0; i < 2; ++i) {
+    for (int i = 0; i < 7; ++i) {
         stringstream ss;
-        ss << "A" << rand() % 50 << "B" << rand() % 10 << endl;
+        ss << "A" << rand() % 30 << "B" << rand() % 20 << endl;
         parser.parseLine(ss.str().c_str());
     }
     parser.parseLine("A0B0\n");
 
-    update();
+    run();
 
     EXPECT_THAT(mm.data.size(), Gt(0));
     EXPECT_THAT(mm.current, Eq(Ai{0, 0}));
+}
 
-#if 0
-    ofstream fs("data.csv");
-    for (auto &a : mm.data) {
-        fs << a[0] << ", " << a[1] << endl;
-    }
-#endif
+TEST_F(Integration_Should, move_with_spu) {
+    interpreter.setTicksPerSecond(200);
+    auto reduction = 72.f / 15.f; // 4.8
+    constexpr float Pi = 3.14159265358979323846f;
+    auto perRot = 2.f * reduction * 1.f / (2.f * Pi);
+    auto perRotPrism = 1.f / 5.f;
+    Af spu{20 * perRot, 10 * perRotPrism, 10 * perRotPrism, 10 * perRotPrism, 20 * perRot};
+    Af v{0.5f, 45.f, 45.f, 45.f, 2.f};
+    Af a{1.f, 60.f, 60.f, 60.f, 3.f};
+
+    interpreter.m102StepsPerUnitLengthOverride(spu);
+    interpreter.m100MaxVelocityOverride(v);
+    interpreter.m101MaxAccelerationOverride(a);
+    interpreter.m103HomingVelocityOverride(v * 0.5f);
+
+    parser.parseLine("X20\n");
+    run();
+
+    Af pos = interpreter.toUnits(executor.position());
+    EXPECT_THAT(pos, Eq(Af{0, 20, 0, 0, 0}));
+    EXPECT_THAT(mm.current, Eq(Ai{0, 40, 0, 0, 0}));
 }
 
 TEST_F(Integration_Should, move_after_homing) {
@@ -110,7 +126,7 @@ TEST_F(Integration_Should, move_after_homing) {
     parser.parseLine("G28\n");
     parser.parseLine("A30\n");
 
-    update();
+    run();
 
     EXPECT_THAT(mm.current, Eq(Ai{30, 0}));
 }
@@ -122,7 +138,7 @@ TEST_F(Integration_Should, move_after_waiting) {
     parser.parseLine("G4 P0\n");
     parser.parseLine("A30\n");
 
-    update();
+    run();
 
     EXPECT_THAT(mm.current, Eq(Ai{30, 0}));
 }
@@ -133,7 +149,7 @@ TEST_F(Integration_Should, move_to_zero_without_spaces) {
     parser.parseLine("a2b2\n");
     parser.parseLine("a0b0\n");
 
-    update();
+    run();
 
     EXPECT_THAT(mm.current, Eq(Ai{0, 0}));
 }

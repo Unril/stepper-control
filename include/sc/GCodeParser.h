@@ -456,7 +456,7 @@ class GCodeParser {
         if (!expectNewLine()) {
             return false;
         }
-        cb_->printCurrentPosition();
+        cb_->printCompleted();
         return true;
     }
 

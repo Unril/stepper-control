@@ -19,10 +19,10 @@ a_i = (v_i - v_i-1)/tb_i
 Apply slow down factor to velocities if blends overlap.
 f_i = sqrt(min(dT_i-1, dT_i)/tb_i)
 */
-template <size_t AxesSize>
+template <size_t AxesSize, typename Real = float>
 class PathToTrajectoryConverter {
   public:
-    using Af = Axes<float, AxesSize>;
+    using Af = Axes<Real, AxesSize>;
     using Ai = Axes<int32_t, AxesSize>;
 
     explicit PathToTrajectoryConverter(std::vector<Ai> &path) : path_(path) {
@@ -93,13 +93,13 @@ class PathToTrajectoryConverter {
 
     std::vector<Af> const &accelerations() const { return accelerations_; }
 
-    std::vector<float> const &durations() const { return Dts_; }
+    std::vector<Real> const &durations() const { return Dts_; }
 
-    std::vector<float> &durations() { return Dts_; }
+    std::vector<Real> &durations() { return Dts_; }
 
-    std::vector<float> const &blendDurations() const { return tbs_; }
+    std::vector<Real> const &blendDurations() const { return tbs_; }
 
-    std::vector<float> &blendDurations() { return tbs_; }
+    std::vector<Real> &blendDurations() { return tbs_; }
 
     Af const &maxVelocity() const { return maxVelocity_; }
 
@@ -120,23 +120,23 @@ class PathToTrajectoryConverter {
                 Dts_[i] =
                     std::max(Dts_[i], (std::abs(path_[i + 1][j] - path_[i][j]) / maxVelocity_[j]));
             }
-            velocities_[i] = axCast<float>(path_[i + 1] - path_[i]) / Dts_[i];
+            velocities_[i] = axCast<Real>(path_[i + 1] - path_[i]) / Dts_[i];
         }
     }
 
     void applySlowDownFactor() {
-        const auto eps = 1.e-6f;
+        constexpr auto eps = 1e-6f;
 
         int numBlendsSlowedDown = std::numeric_limits<int>::max();
-        std::vector<float> slowDownFactors(path_.size());
-        while (numBlendsSlowedDown > 1) {
+        std::vector<Real> slowDownFactors(path_.size());
+        while (numBlendsSlowedDown >= 1) {
             numBlendsSlowedDown = 0;
             fill(slowDownFactors.begin(), slowDownFactors.end(), 1.0f);
 
             for (size_t i = 0; i < path_.size(); i++) {
                 // Calculate blend duration and acceleration.
-                Af previousVelocity = (i == 0) ? axConst<AxesSize>(0.f) : velocities_[i - 1];
-                Af nextVelocity = (i == path_.size() - 1) ? axConst<AxesSize>(0.f) : velocities_[i];
+                Af previousVelocity = (i == 0) ? axConst<Af>(0.f) : velocities_[i - 1];
+                Af nextVelocity = (i == path_.size() - 1) ? axConst<Af>(0.f) : velocities_[i];
                 tbs_[i] = 0.0f;
                 for (size_t j = 0; j < path_[i].size(); j++) {
                     tbs_[i] = std::max(
@@ -148,21 +148,22 @@ class PathToTrajectoryConverter {
                 // Calculate slow down factor such that the blend phase replaces at most half of the
                 // neighboring linear trajectory.
                 if ((i > 0 && tbs_[i] > Dts_[i - 1] + eps &&
-                     tbs_[i - 1] + tbs_[i] > 2.0 * Dts_[i - 1] + eps) ||
+                     tbs_[i - 1] + tbs_[i] > 2.f * Dts_[i - 1] + eps) ||
                     (i < path_.size() - 1 && tbs_[i] > Dts_[i] + eps &&
-                     tbs_[i] + tbs_[i + 1] > 2.0 * Dts_[i] + eps)) {
+                     tbs_[i] + tbs_[i + 1] > 2.f * Dts_[i] + eps)) {
                     numBlendsSlowedDown++;
                     auto maxDuration = std::min(
-                        i == 0 ? std::numeric_limits<float>::max() : Dts_[i - 1],
-                        i == path_.size() - 1 ? std::numeric_limits<float>::max() : Dts_[i]);
+                        i == 0 ? std::numeric_limits<Real>::max() : Dts_[i - 1],
+                        i == path_.size() - 1 ? std::numeric_limits<Real>::max() : Dts_[i]);
                     slowDownFactors[i] = std::sqrt(maxDuration / tbs_[i]);
                 }
             }
 
             // Apply slow down factors to linear trajectory.
             for (size_t i = 0; i < path_.size() - 1; i++) {
-                velocities_[i] *= std::min(slowDownFactors[i], slowDownFactors[i + 1]);
-                Dts_[i] = Dts_[i] / std::min(slowDownFactors[i], slowDownFactors[i + 1]);
+                auto f = std::min(slowDownFactors[i], slowDownFactors[i + 1]);
+                velocities_[i] *= f;
+                Dts_[i] = Dts_[i] / f;
             }
         }
     }
@@ -170,8 +171,8 @@ class PathToTrajectoryConverter {
     std::vector<Ai> &path_; // In steps.
     std::vector<Af> velocities_;
     std::vector<Af> accelerations_;
-    std::vector<float> Dts_;
-    std::vector<float> tbs_;
+    std::vector<Real> Dts_;
+    std::vector<Real> tbs_;
     Af maxVelocity_;
     Af maxAcceleration_;
 };
